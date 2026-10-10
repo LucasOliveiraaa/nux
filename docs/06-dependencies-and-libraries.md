@@ -154,6 +154,8 @@ When you change a dependency's recipe, Nux rebuilds it and everything that
 depends on it. Change `cjson.nux` (add an option, say) and run `nux status`:
 both `cjson` and `pretty` show `not built`.
 
+The finished environment is in `example/json-tools`.
+
 ## What you learned
 
 - **`export_lib("name")`** publishes a library to dependents. Use `lib = ...`

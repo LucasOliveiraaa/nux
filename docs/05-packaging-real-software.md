@@ -150,6 +150,55 @@ Requested packages:
 5.4.7 stays installed next to 5.3.6. Another environment can still use it,
 and `nux purge` removes it when none does.
 
+## Keep both commands: name them
+
+Both versions are installed, but there is only one `lua` command, and the
+last environment you synced decides which version it runs. When you need
+both, give each version's command its own name, with `name` in `set_bin`:
+
+```nux
+program lua {
+    let series = "5.4";
+    let release = "${series}.7";
+    version(release);
+    source(url = "https://www.lua.org/ftp/lua-${release}.tar.gz");
+    bash { tar -xzf $NUX_SOURCE_PATH --strip-components=1 }
+    make(targets = ["all"], prefix_var = "INSTALL_TOP");
+    set_bin("bin/lua", name = "lua${series}");
+
+    series = "5.3";
+    release = "${series}.6";
+    version(release);
+    source(url = "https://www.lua.org/ftp/lua-${release}.tar.gz");
+    bash { tar -xzf $NUX_SOURCE_PATH --strip-components=1 }
+    make(targets = ["posix"], prefix_var = "INSTALL_TOP");
+    set_bin("bin/lua", name = "lua${series}");
+}
+```
+
+The file is still `bin/lua` in each version's install directory. Only its
+link in `~/.nux/bin` is named differently: `lua5.4` and `lua5.3`. Sync again.
+Nothing is rebuilt, because the build hasn't changed, but the old `lua`
+link is replaced:
+
+```
+  Removed link: lua
+```
+
+```sh
+lua5.3 -v
+```
+
+```
+Lua 5.3.6  Copyright (C) 1994-2020 Lua.org, PUC-Rio
+```
+
+Now an environment that asks for Lua 5.4 links `lua5.4`, one that asks for
+5.3 links `lua5.3`, and both commands stay available. `example/lua` has two
+such environments: sync both and run `lua5.4 -v` and `lua5.3 -v`.
+
+A link name is a plain file name: no `/`, no spaces, not starting with `.`.
+
 ## A few language basics
 
 Recipes are small programs, so you can use conditions and loops when a build
@@ -179,6 +228,8 @@ the recipe.
   and `go()` write the standard build steps for you.
 - One recipe can offer **several versions**. Requirements choose between
   them.
+- **`set_bin(path, name = ...)`** names a version's command, so that several
+  versions can be installed and used at once.
 - **`let`** variables and **`${name}`** keep recipes short.
 
 Next: [Dependencies and libraries](06-dependencies-and-libraries.md).

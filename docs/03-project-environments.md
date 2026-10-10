@@ -167,6 +167,9 @@ installed.
 Commands (things in `~/.nux/bin`) are shared, though: there is one `jq`
 command. The last environment you synced decides which version it runs.
 
+A ready-made project environment is in `example/cli-tools`: try
+`nux status -e example/cli-tools` from the Nux repository.
+
 ## What you learned
 
 - A project's **`Nux.toml`** lists the packages it needs, with version

@@ -62,7 +62,8 @@ nux status              # see what is installed
 ```
 
 Run `nux help` for every command. To learn more, follow
-[the lessons](docs/README.md).
+[the lessons](docs/README.md), and try the ready-to-run environments in
+[example/](example/README.md).
 
 ## License
 

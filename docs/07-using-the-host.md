@@ -103,7 +103,7 @@ program python {
         source(url = "https://www.python.org/ftp/python/${release}/Python-${release}.tgz");
         bash { tar -xzf $NUX_SOURCE_PATH --strip-components=1 }
         autotools();
-        set_bin("bin/python3");
+        set_bin("bin/python3", name = "python3.12");
     }
 }
 ```
@@ -111,10 +111,11 @@ program python {
 Now `add_dependency(python, "^3")` still uses the host's Python, because Nux
 prefers it. `add_dependency(python, "3.12.7")` builds 3.12.7.
 
-Mind the command, though. A Python that Nux builds is linked as
-`~/.nux/bin/python3`, and `~/.nux/bin` usually comes first on your `PATH`.
-After that sync, typing `python3` runs 3.12.7, not your system's. Host
-versions are never linked, so they never shadow anything.
+Note the `name` in `set_bin` (lesson 5). Without it, the Python Nux builds
+would be linked as `~/.nux/bin/python3`, and since `~/.nux/bin` usually comes
+first on your `PATH`, typing `python3` would run 3.12.7 instead of your
+system's. Named `python3.12`, it sits next to the system's `python3` without
+hiding it. Host versions are never linked, so they never hide anything.
 
 ## Ask the machine questions
 
@@ -151,6 +152,9 @@ The result has `stdout`, `stderr`, `status` (the exit code) and `success`
 Recipes are read every time Nux runs, `nux status` included. So use `exec`
 only to *ask* questions, and keep them quick. Building belongs in `bash`
 blocks and helpers.
+
+The finished environment is in `example/host-tools`, and the Python recipe in
+`example/recipes/python.nux`.
 
 ## What you learned
 

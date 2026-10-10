@@ -101,7 +101,8 @@ program name {
 | `source(local = "dir")` | Use files next to `Nux.toml`. |
 | `add_dependency(name, "req")` | Need another package (requirement defaults to `latest`). |
 | `bash { ... }` | Build commands, one per line. |
-| `set_bin("bin/x")` | The program to link in `~/.nux/bin`. |
+| `set_bin("bin/x")` | The program to link in `~/.nux/bin`, as `x`. |
+| `set_bin("bin/x", name = "x2")` | The same, linked as `x2`. |
 | `export_lib("x", lib = "lib", include = "include")` | A library for dependents. |
 | `use_host("x")` | This version is the machine's `x`; nothing is built. |
 

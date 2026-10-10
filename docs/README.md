@@ -55,6 +55,10 @@ basic shell commands.
 Once you know your way around, keep the [cheat sheet](cheatsheet.md) at
 hand: commands, recipe functions and settings on one page.
 
+The [`example/`](../example/README.md) folder has a ready-to-run environment
+for each part of the lessons, and a repository of recipes you can use
+right away.
+
 ## Getting help from Nux itself
 
 Every command explains itself:

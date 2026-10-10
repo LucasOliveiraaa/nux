@@ -11,26 +11,24 @@ directories of recipes, which you can write yourself (from lesson 4), share
 with your team, or take from someone else.
 
 Nux's source comes with example recipes you can use right away, in
-`example/advanced/repository` and `example/repository`. Among them: `jq`,
-`ripgrep`, `lazygit`, `curl` and `zlib`.
+`example/recipes`: `jq`, `ripgrep`, `lua`, `zlib`, `cjson`, and the tools
+they need to build.
 
 ## Tell Nux where your recipes are
 
 Settings that apply everywhere live in `~/.config/nux/config.toml`. Create it
-and list the two example repositories, replacing `/path/to/nux` with where
-you cloned Nux:
+and list the example repository, replacing `/path/to/nux` with where you
+cloned Nux:
 
 ```toml
 # ~/.config/nux/config.toml
 [[repository]]
-path = "/path/to/nux/example/advanced/repository"
-
-[[repository]]
-path = "/path/to/nux/example/repository"
+path = "/path/to/nux/example/recipes"
 ```
 
-When two repositories have a recipe for the same package, the first one
-listed wins.
+You can list several repositories, each in its own `[[repository]]` block.
+When two of them have a recipe for the same package, the first one listed
+wins.
 
 ## Install a package
 
@@ -189,12 +187,17 @@ your `hello-env` environment from lesson 1 still uses.
 ## Install several at once
 
 ```sh
-nux install ripgrep lazygit
+nux install ripgrep lua
 ```
 
 Nux builds independent packages at the same time, up to four by default.
-ripgrep needs Rust (`cargo`) and lazygit needs Go. Nux uses yours if they are
-installed, and otherwise downloads them.
+ripgrep needs Rust (`cargo`): Nux uses yours if it is installed, and
+otherwise downloads it.
+
+Not every package installs a command named after itself. ripgrep's command
+is `rg`, and Lua's is `lua5.4`, so that several Lua releases can be installed
+at once (lesson 5 shows how). `nux status` lists the commands each package
+links, under "Executable links".
 
 ## What you learned
 

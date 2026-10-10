@@ -168,6 +168,8 @@ Nux does **not** watch the files of a `local` source. After editing
 version("1.0.1");
 ```
 
+The finished environment is in `example/hello`, if you want to compare.
+
 ## What you learned
 
 - A recipe is a **`program`** with one or more **`version`**s.
