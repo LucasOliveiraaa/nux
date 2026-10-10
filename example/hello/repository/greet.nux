@@ -1,0 +1,12 @@
+// Builds src/greet/greet.c with the C compiler.
+program greet {
+    version("1.0.0");
+    source(local = "src/greet");
+
+    bash {
+        mkdir -p $NUX_PREFIX/bin
+        cc greet.c -o $NUX_PREFIX/bin/greet
+    }
+
+    set_bin("bin/greet");
+}

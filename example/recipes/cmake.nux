@@ -1,0 +1,21 @@
+// CMake, the build system. The system's is used when there is one.
+program cmake {
+    let host = host_version("cmake");
+    if host {
+        version(host);
+        use_host("cmake");
+        return;
+    }
+
+    let release = "3.31.6";
+    version(release);
+    source(url = "https://github.com/Kitware/CMake/releases/download/v${release}/cmake-${release}.tar.gz");
+    add_dependency(gcc);
+    bash {
+        tar -xzf $NUX_SOURCE_PATH --strip-components=1
+        ./bootstrap --prefix=$NUX_PREFIX --parallel=$NUX_JOBS -- -DCMAKE_USE_OPENSSL=OFF
+        make -j $NUX_JOBS
+        make install
+    }
+    set_bin("bin/cmake");
+}

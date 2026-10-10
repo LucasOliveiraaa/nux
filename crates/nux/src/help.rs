@@ -106,7 +106,7 @@ or the sources change.",
             WAIT,
             HELP,
         ],
-        examples: &["nux sync", "nux sync -e example/minimal -y", "nux sync --locked -y   # in CI"],
+        examples: &["nux sync", "nux sync -e example/hello -y", "nux sync --locked -y   # in CI"],
     },
     Page {
         name: "status",

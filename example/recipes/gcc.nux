@@ -1,0 +1,20 @@
+// The C compiler. Your system's gcc is used when there is one: building a
+// compiler takes hours.
+program gcc {
+    let host = host_version("gcc");
+    if host {
+        version(host);
+        use_host("gcc");
+        return;
+    }
+
+    let release = "14.2.0";
+    version(release);
+    source(url = "https://ftp.gnu.org/gnu/gcc/gcc-${release}/gcc-${release}.tar.xz");
+    bash {
+        tar -xJf $NUX_SOURCE_PATH --strip-components=1
+        ./contrib/download_prerequisites
+    }
+    autotools(options = ["--enable-languages=c,c++", "--disable-multilib", "--disable-bootstrap"]);
+    set_bin("bin/gcc");
+}

@@ -1,0 +1,21 @@
+// Python 3. The system's is used when there is one, and 3.12 can also be
+// built for packages that need exactly that version.
+program python {
+    let host = host_version("python3");
+    if host {
+        version(host);
+        use_host("python3");
+    }
+
+    let series = "3.12";
+    let release = "${series}.7";
+    if host != release {
+        version(release);
+        source(url = "https://www.python.org/ftp/python/${release}/Python-${release}.tgz");
+        add_dependency(gcc);
+        bash { tar -xzf $NUX_SOURCE_PATH --strip-components=1 }
+        autotools(options = ["--without-ensurepip"]);
+        // Linked as `python3.12`, so it never hides your system's `python3`.
+        set_bin("bin/python3", name = "python${series}");
+    }
+}

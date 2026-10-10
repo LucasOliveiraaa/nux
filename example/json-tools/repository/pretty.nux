@@ -1,0 +1,17 @@
+// Pretty-prints JSON with the cJSON library. Lua generates a header while
+// it builds: the programs of dependencies are on the PATH during builds.
+program pretty {
+    version("1.0.0");
+    source(local = "src/pretty");
+    add_dependency(cjson, "^1.7");
+    add_dependency(lua, "^5.4");
+    add_dependency(gcc);
+
+    bash {
+        lua -e 'print(string.format("#define BANNER %q", "pretty " .. _VERSION))' > banner.h
+        mkdir -p $NUX_PREFIX/bin
+        cc pretty.c $CPPFLAGS $LDFLAGS -lcjson -o $NUX_PREFIX/bin/pretty
+    }
+
+    set_bin("bin/pretty");
+}

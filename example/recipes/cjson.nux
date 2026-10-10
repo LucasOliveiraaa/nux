@@ -1,0 +1,13 @@
+// cJSON, a small JSON library, built with CMake from a git tag.
+program cjson {
+    let release = "1.7.18";
+    version(release);
+    source(git = "https://github.com/DaveGamble/cJSON.git", tag = "v${release}");
+    add_dependency(cmake);
+
+    // Some systems install into lib64 by default: ask for lib.
+    cmake(options = ["-DENABLE_CJSON_TEST=OFF", "-DCMAKE_INSTALL_LIBDIR=lib"]);
+
+    // Headers in include/cjson/, so dependents write `#include <cjson/cJSON.h>`.
+    export_lib("cjson");
+}

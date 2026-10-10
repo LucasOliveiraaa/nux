@@ -1,0 +1,12 @@
+// jq, the command-line JSON processor.
+program jq {
+    let release = "1.7.1";
+    version(release);
+    source(url = "https://github.com/jqlang/jq/releases/download/jq-${release}/jq-${release}.tar.gz");
+    add_dependency(gcc);
+
+    bash { tar -xzf $NUX_SOURCE_PATH --strip-components=1 }
+    autotools(options = ["--with-oniguruma=builtin", "--disable-docs", "--disable-maintainer-mode"]);
+
+    set_bin("bin/jq");
+}

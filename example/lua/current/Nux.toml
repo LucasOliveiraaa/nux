@@ -1,0 +1,16 @@
+# Lesson 5: one of two environments asking for different Lua releases.
+# The Lua recipe links each release under its own name, so syncing both
+# gives you `lua5.4` and `lua5.3` side by side.
+#
+#   nux sync -e example/lua/current
+#   nux sync -e example/lua/legacy
+#   lua5.4 -v && lua5.3 -v
+
+[environment]
+name = "example-lua-current"
+
+[packages]
+lua = "^5.4"
+
+[[repository]]
+path = "../../recipes"

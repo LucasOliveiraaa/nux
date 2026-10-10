@@ -1,0 +1,21 @@
+// The Lua language, in two release series. Each is linked under its own
+// name, `lua5.4` and `lua5.3`, so both commands can be installed at once.
+program lua {
+    let series = "5.4";
+    let release = "${series}.7";
+    version(release);
+    source(url = "https://www.lua.org/ftp/lua-${release}.tar.gz");
+    add_dependency(gcc);
+    bash { tar -xzf $NUX_SOURCE_PATH --strip-components=1 }
+    make(targets = ["all"], prefix_var = "INSTALL_TOP");
+    set_bin("bin/lua", name = "lua${series}");
+
+    series = "5.3";
+    release = "${series}.6";
+    version(release);
+    source(url = "https://www.lua.org/ftp/lua-${release}.tar.gz");
+    add_dependency(gcc);
+    bash { tar -xzf $NUX_SOURCE_PATH --strip-components=1 }
+    make(targets = ["posix"], prefix_var = "INSTALL_TOP");
+    set_bin("bin/lua", name = "lua${series}");
+}

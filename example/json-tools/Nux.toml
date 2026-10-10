@@ -1,0 +1,18 @@
+# Lesson 6: a program that links against a library (cJSON) and runs another
+# package (Lua) while it builds.
+#
+#   nux sync -e example/json-tools
+#   echo '{"name":"nux"}' | pretty
+
+[environment]
+name = "example-json-tools"
+
+[packages]
+pretty = "latest"
+
+# This environment's own recipes first, then the shared ones.
+[[repository]]
+path = "./repository"
+
+[[repository]]
+path = "../recipes"

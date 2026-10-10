@@ -1,0 +1,20 @@
+// Asks the machine questions while the recipe is read (`nux.arch`, `exec`),
+// and runs the host's Python while it builds.
+program sysinfo {
+    version("1.0.0");
+    add_dependency(python, "^3");
+
+    // `${...}` only takes plain variable names: copy `nux.arch` first.
+    let os = nux.os;
+    let arch = nux.arch;
+    let kernel = trim(exec("uname", ["-r"]).stdout);
+
+    bash {
+        mkdir -p $NUX_PREFIX/bin
+        python3 -c 'import platform; print(platform.python_version())' > python-version
+        printf '#!/bin/sh\necho "%s on %s, kernel %s, built with Python %s"\n' "${os}" "${arch}" "${kernel}" "$(cat python-version)" > $NUX_PREFIX/bin/sysinfo
+        chmod +x $NUX_PREFIX/bin/sysinfo
+    }
+
+    set_bin("bin/sysinfo");
+}

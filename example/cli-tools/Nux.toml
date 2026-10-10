@@ -1,0 +1,15 @@
+# Lessons 2 and 3: everyday command-line tools, from the shared recipes.
+# jq builds with autotools, ripgrep with Cargo (yours, if you have Rust).
+#
+#   nux sync -e example/cli-tools
+#   rg --version && jq --version
+
+[environment]
+name = "example-cli-tools"
+
+[packages]
+jq = "~1.7"
+ripgrep = "^14"
+
+[[repository]]
+path = "../recipes"

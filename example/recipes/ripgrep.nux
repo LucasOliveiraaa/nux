@@ -1,0 +1,13 @@
+// ripgrep, a fast search tool, built with Cargo. The package is `ripgrep`;
+// the command it installs is `rg`.
+program ripgrep {
+    let release = "14.1.1";
+    version(release);
+    source(git = "https://github.com/BurntSushi/ripgrep.git", tag = release);
+    add_dependency(rust);
+
+    // `cargo install --locked`: the versions in ripgrep's Cargo.lock.
+    cargo(locked = true);
+
+    set_bin("bin/rg");
+}

@@ -1,0 +1,13 @@
+// The zlib compression library: a library only, no command.
+program zlib {
+    let release = "1.3.1";
+    version(release);
+    source(url = "https://github.com/madler/zlib/releases/download/v${release}/zlib-${release}.tar.gz");
+    add_dependency(gcc);
+
+    bash { tar -xzf $NUX_SOURCE_PATH --strip-components=1 }
+    autotools();
+
+    // Dependents can `#include <zlib.h>` and link with `-lz`.
+    export_lib("z");
+}

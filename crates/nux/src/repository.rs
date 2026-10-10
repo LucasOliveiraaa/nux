@@ -216,6 +216,35 @@ mod tests {
         assert!(started.elapsed() < std::time::Duration::from_millis(1200), "{:?}", started.elapsed());
     }
 
+    /// Every `Nux.toml` under `dir`, sorted.
+    fn environments(dir: &Path) -> Vec<PathBuf> {
+        let mut found = Vec::new();
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                found.extend(environments(&path));
+            } else if path.file_name().is_some_and(|n| n == "Nux.toml") {
+                found.push(path);
+            }
+        }
+        found.sort();
+        found
+    }
+
+    #[test]
+    fn every_example_environment_resolves() {
+        let examples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example");
+        let found = environments(&examples);
+        assert!(found.len() >= 6, "{found:?}");
+        for path in found {
+            let env = crate::environment::Environment::load(&path).unwrap();
+            // Without host tools, every recipe takes its build-from-source branch.
+            let resolved = crate::commands::sync::resolve_environment(&env, &Host::empty(), None, DEFAULT_JOBS);
+            let (packages, _) = resolved.unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+            assert!(!packages.is_empty(), "{}", path.display());
+        }
+    }
+
     #[test]
     fn useful_errors() {
         let missing = std::env::temp_dir().join("nux-repo-tests-does-not-exist");

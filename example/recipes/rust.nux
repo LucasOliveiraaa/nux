@@ -1,0 +1,21 @@
+// The Rust toolchain (cargo and rustc). Your own is used when `cargo` is
+// on your PATH; otherwise the official prebuilt release is installed.
+program rust {
+    let host = host_version("cargo");
+    if host {
+        version(host);
+        use_host("cargo");
+        return;
+    }
+
+    // The release archives are named after the machine: x86_64, aarch64...
+    let arch = nux.arch;
+    let release = "1.82.0";
+    version(release);
+    source(url = "https://static.rust-lang.org/dist/rust-${release}-${arch}-unknown-linux-gnu.tar.xz");
+    bash {
+        tar -xJf $NUX_SOURCE_PATH --strip-components=1
+        ./install.sh --prefix=$NUX_PREFIX --without=rust-docs
+    }
+    set_bin("bin/cargo");
+}

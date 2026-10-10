@@ -1,0 +1,11 @@
+# Lesson 5: the older Lua release, for a project that still needs it.
+# See ../current/Nux.toml.
+
+[environment]
+name = "example-lua-legacy"
+
+[packages]
+lua = "~5.3"
+
+[[repository]]
+path = "../../recipes"

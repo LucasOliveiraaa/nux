@@ -1,0 +1,14 @@
+# Lesson 4: a recipe for a program that lives next to the environment.
+# Nothing is downloaded, so it builds in a second, even offline.
+#
+#   nux sync -e example/hello
+#   greet Nux
+
+[environment]
+name = "example-hello"
+
+[packages]
+greet = "latest"
+
+[[repository]]
+path = "./repository"

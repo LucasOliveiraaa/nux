@@ -1,0 +1,18 @@
+# Lesson 7: reusing what the machine already has. `sysinfo` needs Python 3,
+# and the Python recipe uses your system's instead of building one.
+#
+#   nux status -e example/host-tools     # python: "provided by the host"
+#   nux sync -e example/host-tools
+#   sysinfo
+
+[environment]
+name = "example-host-tools"
+
+[packages]
+sysinfo = "latest"
+
+[[repository]]
+path = "./repository"
+
+[[repository]]
+path = "../recipes"
