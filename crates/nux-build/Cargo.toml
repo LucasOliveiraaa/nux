@@ -1,0 +1,12 @@
+[package]
+name = "nux-build"
+description = "Downloads, builds and installs resolved packages into a Nux workspace."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nux-eval.workspace = true
+nux-executor.workspace = true
+nux-resolver.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
