@@ -1,0 +1,8 @@
+[package]
+name = "nux-firebox"
+description = "Runs commands in a sandbox: Linux namespaces, a read-only host and hidden personal files."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+libc.workspace = true
