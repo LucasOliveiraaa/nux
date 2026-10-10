@@ -1,0 +1,10 @@
+[package]
+name = "tfla"
+description = "Table-driven finite automata used to build the lexer."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+hashbrown.workspace = true
+regex-automata.workspace = true
+thiserror.workspace = true
