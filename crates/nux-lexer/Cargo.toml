@@ -1,0 +1,9 @@
+[package]
+name = "nux-lexer"
+description = "Source files, tokens and diagnostics for the .nux language."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+tfla.workspace = true
