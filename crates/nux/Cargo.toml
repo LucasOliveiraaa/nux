@@ -1,0 +1,15 @@
+[package]
+name = "nux"
+description = "The `nux` command-line tool."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nux-build.workspace = true
+nux-eval.workspace = true
+nux-executor.workspace = true
+nux-lexer.workspace = true
+nux-log.workspace = true
+nux-resolver.workspace = true
+toml.workspace = true
+toml_edit.workspace = true
