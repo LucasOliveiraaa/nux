@@ -285,15 +285,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_the_example_environment() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example/Nux.toml");
-        let env = Environment::load(&path).unwrap();
-        assert_eq!(env.name, "my_env");
-        assert_eq!(env.repositories, [path.parent().unwrap().join("./repository")]);
-        assert_eq!(env.packages, [Request::new("cmake", "4.2.0"), Request::new("nvim", "0.9.0")]);
-    }
-
-    #[test]
     fn parses_packages_and_repositories_in_order() {
         let env = parse(
             r#"

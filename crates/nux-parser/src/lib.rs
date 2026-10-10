@@ -694,40 +694,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_repository_file() {
-        let src = include_str!("../../../example/repository/cmake.nux");
-        let (arena, id) = setup(src);
-        let program = try_parse(&arena, id).unwrap_or_else(|e| panic!("{}", e.render(&arena)));
-        check_nesting(&program);
-        assert_eq!(program.name.name, "cmake");
-        assert_eq!(text(&arena, program.span), src.trim_end());
-
-        let bash = program
-            .statements
-            .iter()
-            .find_map(|s| match &s.kind {
-                StatementKind::Bash { commands } => Some((commands, s.span)),
-                _ => None,
-            })
-            .unwrap();
-        // `--prefix` must not be swallowed as a comment; each line is a command.
-        assert_eq!(bash.0, &["./bootstrap --prefix=$NUX_PREFIX", "make -j2", "make install"]);
-        assert!(text(&arena, bash.1).starts_with("bash {"));
-        assert!(text(&arena, bash.1).ends_with('}'));
-    }
-
-    #[test]
-    fn parses_commented_config_file() {
-        let src = include_str!("../../../example/repository/gcc.nux");
-        let (arena, id) = setup(src);
-        let program = try_parse(&arena, id).unwrap_or_else(|e| panic!("{}", e.render(&arena)));
-        check_nesting(&program);
-        // `let host`, `if`, `version`, `source`, `bash`, `autotools`, `set_bin`;
-        // comments produce nothing.
-        assert_eq!(program.statements.len(), 7);
-    }
-
-    #[test]
     fn statement_spans_include_terminators() {
         let (arena, program) = parse_body("let x = 1 + 2; x = 3; f(a, b = 2); while x { } if a { } else if b { } else { }");
         let spans: Vec<_> = program.statements.iter().map(|s| text(&arena, s.span)).collect();

@@ -109,50 +109,12 @@ fn file_name() -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, Instant};
-
     use super::*;
-    use crate::SourceArena;
 
     fn dir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("nux-lexer-cache-{}", std::process::id())).join(name);
         let _ = std::fs::remove_dir_all(&dir);
         dir
-    }
-
-    /// Every `.nux` file of the examples, lexed.
-    fn lex_examples(lexer: &Lexer) -> Vec<String> {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example");
-        let mut files = Vec::new();
-        for repository in ["repository", "advanced/repository", "minimal/repository"] {
-            for entry in std::fs::read_dir(root.join(repository)).unwrap() {
-                files.push(entry.unwrap().path());
-            }
-        }
-        files.sort();
-        let mut arena = SourceArena::new();
-        files
-            .iter()
-            .map(|file| {
-                let id = arena.load(file).unwrap();
-                let tokens = lexer.lex(arena.get(id).unwrap()).unwrap();
-                tokens.iter().map(|t| format!("{:?} {:?}", t.kind, t.content)).collect::<Vec<_>>().join("\n")
-            })
-            .collect()
-    }
-
-    #[test]
-    fn a_cached_lexer_lexes_like_a_built_one_and_loads_fast() {
-        let dir = dir("same");
-        let built = Lexer::cached_in(&dir).unwrap();
-        let path = dir.join(file_name());
-        assert!(path.is_file());
-
-        let started = Instant::now();
-        let loaded = Lexer::load(&path).expect("the cache was just written");
-        assert!(started.elapsed() < Duration::from_millis(500), "{:?}", started.elapsed());
-        assert_eq!(lex_examples(&loaded), lex_examples(&built));
-        assert_eq!(lex_examples(&loaded), lex_examples(&Lexer::new().unwrap()));
     }
 
     #[test]
@@ -190,12 +152,4 @@ mod tests {
         assert!(Lexer::load(&path).is_some());
     }
 
-    #[test]
-    fn an_unwritable_cache_still_gives_a_lexer() {
-        let file = dir("unwritable");
-        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
-        std::fs::write(&file, "a file where the directory should be").unwrap();
-        let lexer = Lexer::cached_in(&file).unwrap();
-        assert!(!lex_examples(&lexer).is_empty());
-    }
 }

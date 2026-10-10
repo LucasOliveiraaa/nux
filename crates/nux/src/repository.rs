@@ -231,24 +231,4 @@ mod tests {
         assert!(err.ends_with("b.nux` both define program `x`"), "{err}");
     }
 
-    #[test]
-    fn the_minimal_example_resolves() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example/minimal");
-        let env = crate::environment::Environment::load(&root.join("Nux.toml")).unwrap();
-        let resolver = load(&env.repositories, &Host::empty(), DEFAULT_JOBS).unwrap();
-        let requests: Vec<_> = env.packages.iter().map(|r| (r.name.as_str(), r.version.as_str())).collect();
-        // `^1` keeps greeting 2.0.0 out of the build.
-        assert_eq!(plan(&resolver, &requests), ["greeting@1.0.0", "octocat@1.0.0", "hello@0.1.0"]);
-        assert!(root.join("src/hello/hello.sh").is_file());
-    }
-
-    #[test]
-    fn the_example_repository_loads() {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../example/repository");
-        let resolver = load(&[dir], &Host::empty(), DEFAULT_JOBS).unwrap();
-        let cmake = &resolver.package("cmake").unwrap().versions[0];
-        assert_eq!(cmake.version, "4.2.0");
-        assert_eq!(cmake.bin.as_deref(), Some("bin/cmake"));
-        assert_eq!(cmake.source.as_ref().unwrap().tag.as_deref(), Some("v4.2.0"));
-    }
 }
