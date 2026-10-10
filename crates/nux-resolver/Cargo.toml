@@ -1,0 +1,13 @@
+[package]
+name = "nux-resolver"
+description = "Version selection, dependency graphs and build order."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nux-eval.workspace = true
+
+[dev-dependencies]
+nux-executor.workspace = true
+nux-lexer.workspace = true
+nux-parser.workspace = true
