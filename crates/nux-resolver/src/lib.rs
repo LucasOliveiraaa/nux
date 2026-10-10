@@ -38,6 +38,7 @@ pub struct PackageVersion {
     pub dependencies: HashSet<Dependency>,
     pub commands: Vec<String>,
     pub bin: Option<String>,
+    pub bin_name: Option<String>,
     /// Libraries registered by `export_lib`.
     pub libraries: Vec<Library>,
     /// Set when the host already provides this version.
@@ -94,6 +95,8 @@ pub struct ResolvedPackage {
     pub commands: Vec<String>,
     /// The executable registered by `set_bin`, relative to the install prefix.
     pub bin: Option<String>,
+    /// Its link name in `bin/`, if `set_bin` gave one.
+    pub bin_name: Option<String>,
     /// Libraries registered by `export_lib`.
     pub libraries: Vec<Library>,
     /// Set when the host already provides this version.
@@ -221,6 +224,7 @@ impl Resolver {
             dependencies: def.dependencies,
             commands: def.commands,
             bin: def.bin,
+            bin_name: def.bin_name,
             libraries: def.libraries,
             host: def.host,
             parsed,
@@ -334,6 +338,7 @@ impl Resolver {
             source: version.source.clone(),
             commands: version.commands.clone(),
             bin: version.bin.clone(),
+            bin_name: version.bin_name.clone(),
             libraries: version.libraries.clone(),
             host: version.host.clone(),
             dependencies,

@@ -22,6 +22,7 @@ fn add(resolver: &mut Resolver, name: &str, version: &str, dependencies: &[Depen
         source: None,
         dependencies: dependencies.iter().cloned().collect(),
         bin: None,
+        bin_name: None,
         libraries: Vec::new(),
         host: None,
     };
@@ -264,6 +265,7 @@ fn duplicate_and_invalid_versions_are_rejected() {
         source: None,
         dependencies: HashSet::new(),
         bin: None,
+        bin_name: None,
         libraries: Vec::new(),
         host: None,
     };

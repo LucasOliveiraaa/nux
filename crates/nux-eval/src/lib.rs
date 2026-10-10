@@ -52,6 +52,9 @@ pub struct VersionDef {
     pub dependencies: HashSet<Dependency>,
     /// The executable registered by `set_bin`, relative to the install prefix.
     pub bin: Option<String>,
+    /// The name of its link in `bin/`, when `set_bin` gives one; otherwise
+    /// the executable's file name.
+    pub bin_name: Option<String>,
     /// Libraries registered by `export_lib`, in declaration order.
     pub libraries: Vec<Library>,
     /// Set by `use_host`: the host already provides this version, so it is
@@ -67,6 +70,7 @@ impl VersionDef {
             source: None,
             dependencies: HashSet::new(),
             bin: None,
+            bin_name: None,
             libraries: Vec::new(),
             host: None,
         }

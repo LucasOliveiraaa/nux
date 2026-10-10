@@ -267,8 +267,15 @@ fn plan_links(workspace: &Workspace, steps: &[Step]) -> (Vec<Link>, Vec<String>)
     // Host executables are already on the PATH.
     for step in steps.iter().filter(|s| s.package.host.is_none()) {
         let Some(bin) = &step.package.bin else { continue };
-        let Some(name) = Path::new(bin).file_name() else { continue };
-        candidates.entry(name.to_string_lossy().into_owned()).or_default().push(step);
+        // The name `set_bin` gave, or the executable's file name.
+        let name = match &step.package.bin_name {
+            Some(name) => name.clone(),
+            None => match Path::new(bin).file_name() {
+                Some(name) => name.to_string_lossy().into_owned(),
+                None => continue,
+            },
+        };
+        candidates.entry(name).or_default().push(step);
     }
 
     let version = |s: &Step| Version::parse(&s.package.version).ok();

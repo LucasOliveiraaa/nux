@@ -21,12 +21,13 @@ struct Def {
     source: Option<Source>,
     deps: Vec<(&'static str, &'static str)>,
     bin: Option<&'static str>,
+    bin_name: Option<&'static str>,
     libraries: Vec<Library>,
     host: Option<HostBinary>,
 }
 
 fn def(name: &'static str, version: &'static str) -> Def {
-    Def { name, version, commands: Vec::new(), source: None, deps: Vec::new(), bin: None, libraries: Vec::new(), host: None }
+    Def { name, version, commands: Vec::new(), source: None, deps: Vec::new(), bin: None, bin_name: None, libraries: Vec::new(), host: None }
 }
 
 impl Def {
@@ -53,6 +54,12 @@ impl Def {
         self.bin = Some(bin);
         self
     }
+    /// Links the executable as `name` (`set_bin(..., name = ...)`).
+    fn named(mut self, name: &'static str) -> Self {
+        self.bin_name = Some(name);
+        self
+    }
+
     fn lib(mut self, name: &str) -> Self {
         self.libraries.push(Library { name: name.into(), lib: "lib".into(), include: Some("include".into()) });
         self
@@ -83,6 +90,7 @@ fn resolve(defs: Vec<Def>, requests: &[(&str, &str)]) -> (Vec<ResolvedPackage>, 
             source: d.source,
             dependencies,
             bin: d.bin.map(Into::into),
+            bin_name: d.bin_name.map(Into::into),
             libraries: d.libraries,
             host: d.host,
         };
@@ -848,4 +856,23 @@ fn a_failure_stops_new_builds_and_keeps_the_others() {
     assert!(events.contains(&"built aslow@1".to_string()), "{events:?}");
     assert!(!events.iter().any(|e| e.ends_with("later@1") || e.ends_with("top@1")), "{events:?}");
     assert!(builder.workspace().package("aslow", "1").install.join("run").is_file());
+}
+
+#[test]
+fn named_links_let_versions_live_side_by_side() {
+    let home = temp("named-links");
+    let mut builder = Builder::new(home.join("nux"));
+    let defs = || {
+        vec![
+            def("lua", "5.4").bin("bin/lua").named("lua5.4"),
+            def("lua", "5.3").bin("bin/lua").named("lua5.3"),
+            def("app", "1").dep("lua", "5.3").cmd("true"),
+        ]
+    };
+    let (_, events, result) = sync(&mut builder, defs(), &[("lua", "5.4"), ("app", "1")]);
+    result.unwrap_or_else(|e| panic!("{e} {events:?}"));
+    // Both versions are linked, each under its own name.
+    assert_eq!(run_bin(&builder, "lua5.4"), "lua 5.4");
+    assert_eq!(run_bin(&builder, "lua5.3"), "lua 5.3");
+    assert!(builder.bin_path().join("lua").symlink_metadata().is_err());
 }

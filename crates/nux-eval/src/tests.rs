@@ -649,3 +649,25 @@ fn build_system_helper_errors() {
     assert_eq!(err.message, "`cmake` must come after a `version(...)` call");
     assert_eq!(arena.slice(err.span), Some("cmake()"));
 }
+
+#[test]
+fn set_bin_can_name_the_link() {
+    let result = eval(
+        r#"program lua {
+            let release = "5.4";
+            version(release);
+            set_bin("bin/lua", name = "lua${release}");
+            version("5.3");
+            set_bin("bin/lua");
+        }"#,
+    );
+    assert_eq!(result.versions[0].bin.as_deref(), Some("bin/lua"));
+    assert_eq!(result.versions[0].bin_name.as_deref(), Some("lua5.4"));
+    assert_eq!(result.versions[1].bin_name, None);
+
+    let err = |name: &str| run_err(&format!(r#"set_bin("bin/x", name = "{name}");"#)).0;
+    assert_eq!(err(""), "the link name `` must not be empty");
+    assert_eq!(err("a/b"), "the link name `a/b` must be a file name, without `/`");
+    assert_eq!(err(".x"), "the link name `.x` must not start with `.`");
+    assert_eq!(err("a b"), "the link name `a b` must not contain spaces or control characters");
+}

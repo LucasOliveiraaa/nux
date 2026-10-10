@@ -1235,3 +1235,27 @@ fn reset_leaves_a_directory_that_is_not_a_workspace_alone() {
     assert!(output.contains("Kept, since Nux did not create them:\n  bin/env\n  bin/tool\n  document.txt\n"), "{output}");
     assert!(dir.join("bin/tool").exists() && dir.join("bin/env").symlink_metadata().is_ok() && dir.join("document.txt").exists());
 }
+
+#[test]
+fn renaming_a_link_replaces_the_old_one() {
+    let project = Project::new("rename-link", "tool = \"1\"", &[("tool", &tool("tool", "1", ""))]);
+    project.sync(true, "").0.unwrap();
+    assert!(project.home().join("bin/tool").symlink_metadata().is_ok());
+
+    // The recipe now names the link; nothing needs building.
+    project.define("tool", &tool("tool", "1", "").replace(r#"set_bin("bin/tool");"#, r#"set_bin("bin/tool", name = "tool1");"#));
+    let (result, output) = status(&project);
+    assert_eq!(result, Ok(status_command::Outcome::OutOfDate), "{output}");
+    assert!(
+        output.contains("Executable links:\n  tool  -> tool 1 to remove, no longer used\n  tool1 -> tool 1 not linked\n"),
+        "{output}"
+    );
+    let (result, output) = project.sync(true, "");
+    assert_eq!(result, Ok(Outcome::Synced), "{output}");
+    assert!(!output.contains("Building tool... Done"), "no rebuild: {output}");
+    assert!(output.contains("  Removed link: tool\n"), "{output}");
+    let run = std::process::Command::new(project.home().join("bin/tool1")).output().unwrap();
+    assert_eq!(String::from_utf8(run.stdout).unwrap(), "tool 1\n");
+    assert!(project.home().join("bin/tool").symlink_metadata().is_err());
+    assert_eq!(project.sync(true, "").1, UP_TO_DATE);
+}

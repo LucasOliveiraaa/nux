@@ -80,18 +80,23 @@ impl Evaluator<'_> {
                 Ok(Value::Null)
             }
             "set_bin" => {
-                let [path] = resolve_function_args(
+                let [path, name] = resolve_function_args(
                     callee,
                     call_span,
                     args,
-                    &[Param::required("path", ValueType::String)],
+                    &[Param::required("path", ValueType::String), Param::optional("name", ValueType::String)],
                 )?;
                 let path = prefix_path("set_bin", path.unwrap().to_string(), call_span)?;
+                let name = name.map(|n| n.to_string());
+                if let Some(name) = &name {
+                    link_name(name, call_span)?;
+                }
                 let current = self.context.current_version("`set_bin`", call_span)?;
                 if current.bin.is_some() {
                     return Err(EvalError::new("bin is already set", call_span));
                 }
                 current.bin = Some(path);
+                current.bin_name = name;
                 Ok(Value::Null)
             }
             "export_lib" => {
@@ -474,4 +479,24 @@ fn prefix_path(function: &str, path: String, span: Span) -> Result<String> {
         ));
     }
     Ok(path)
+}
+
+/// Checks a `set_bin` link name: one file name in `bin/`, which Nux must be
+/// able to tell from its own temporary files (`.<name>.tmp`).
+fn link_name(name: &str, span: Span) -> std::result::Result<(), EvalError> {
+    let problem = if name.is_empty() {
+        Some("must not be empty")
+    } else if name.contains('/') {
+        Some("must be a file name, without `/`")
+    } else if name.starts_with('.') {
+        Some("must not start with `.`")
+    } else if name.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        Some("must not contain spaces or control characters")
+    } else {
+        None
+    };
+    match problem {
+        Some(problem) => Err(EvalError::new(format!("the link name `{name}` {problem}"), span)),
+        None => Ok(()),
+    }
 }

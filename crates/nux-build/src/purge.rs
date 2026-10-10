@@ -93,12 +93,19 @@ impl Workspace {
         Ok(dropped)
     }
 
-    /// The links in `bin/` into `versions`, except the commands `plan`
-    /// links itself (those are replaced instead).
+    /// The links `plan` leaves behind: links into `versions`, and links to
+    /// an executable that `plan` now links under another name (its recipe
+    /// renamed it with `set_bin(..., name = ...)`). Commands `plan` links
+    /// itself are replaced instead, so they are left out.
     pub fn links_into(&self, versions: &[Version], plan: &BuildPlan) -> Vec<UnusedLink> {
+        let renamed = |name: &str| {
+            let Ok(target) = std::fs::read_link(self.bin_dir().join(name)) else { return false };
+            plan.links.iter().any(|link| link.target == target && link.name != name)
+        };
         self.managed_links()
             .into_iter()
-            .filter(|(name, version)| versions.contains(version) && !plan.links.iter().any(|l| &l.name == name))
+            .filter(|(name, version)| versions.contains(version) || renamed(name))
+            .filter(|(name, _)| !plan.links.iter().any(|l| &l.name == name))
             .map(|(name, (package, version))| UnusedLink { name, package, version })
             .collect()
     }
