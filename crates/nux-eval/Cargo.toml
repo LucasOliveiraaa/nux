@@ -1,0 +1,11 @@
+[package]
+name = "nux-eval"
+description = "Evaluates .nux programs into package version definitions."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nux-executor.workspace = true
+nux-lexer.workspace = true
+nux-parser.workspace = true
+regex.workspace = true
