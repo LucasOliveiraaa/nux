@@ -1,0 +1,8 @@
+[package]
+name = "nux-executor"
+description = "Runs shell commands and programs with a controlled environment and working directory."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nux-firebox.workspace = true
