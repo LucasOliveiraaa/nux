@@ -1,0 +1,7 @@
+[package]
+name = "nux-log"
+description = "Terminal output: colors, progress bars and live progress rows."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
