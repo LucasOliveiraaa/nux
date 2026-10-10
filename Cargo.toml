@@ -1,0 +1,49 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/nux",
+    "crates/nux-build",
+    "crates/nux-eval",
+    "crates/nux-executor",
+    "crates/nux-firebox",
+    "crates/nux-lexer",
+    "crates/nux-log",
+    "crates/nux-parser",
+    "crates/nux-resolver",
+    "crates/tfla",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+# Workspace crates, from the command line down to the lexer.
+nux-build = { path = "crates/nux-build" }
+nux-eval = { path = "crates/nux-eval" }
+nux-executor = { path = "crates/nux-executor" }
+nux-firebox = { path = "crates/nux-firebox" }
+nux-lexer = { path = "crates/nux-lexer" }
+nux-log = { path = "crates/nux-log" }
+nux-parser = { path = "crates/nux-parser" }
+nux-resolver = { path = "crates/nux-resolver" }
+tfla = { path = "crates/tfla" }
+
+anyhow = "1.0"
+hashbrown = "0.17.0"
+libc = "0.2.190"
+regex = "1.13.1"
+regex-automata = "0.4.14"
+serde_json = "1.0.149"
+sha2 = "0.10.9"
+thiserror = "2.0.18"
+toml = "1.1.8"
+toml_edit = "0.25.13"
+
+# Building the lexer's DFA takes tens of seconds with unoptimized regex
+# crates; optimize them even in debug builds.
+[profile.dev.package.regex-automata]
+opt-level = 3
+
+[profile.dev.package.regex-syntax]
+opt-level = 3
