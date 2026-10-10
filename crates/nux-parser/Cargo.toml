@@ -1,0 +1,8 @@
+[package]
+name = "nux-parser"
+description = "Parses .nux tokens into a syntax tree."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nux-lexer.workspace = true
