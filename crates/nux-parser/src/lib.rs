@@ -196,7 +196,7 @@ impl<'a> Parser<'a> {
             TokenKind::Let => self.parse_let_statement(),
             TokenKind::If => self.parse_if_statement(),
             TokenKind::While => self.parse_while_statement(),
-            TokenKind::Bash => self.parse_bash_statement(),
+            TokenKind::Unsafe | TokenKind::Bash => self.parse_bash_statement(),
             TokenKind::Return => self.parse_return_statement(),
             TokenKind::Ident if self.peek_nth_kind(1) == TokenKind::Eq => {
                 self.parse_assign_statement()
@@ -301,14 +301,27 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_bash_statement(&mut self) -> Result<ast::Statement> {
+        let is_unsafe = if self.is_kind(TokenKind::Unsafe) {
+            self.next(); // consume 'unsafe'
+            true
+        } else {
+            false
+        };
         let start = self.expect(TokenKind::Bash)?.span;
         self.expect(TokenKind::OBrace)?;
         let command = self.expect(TokenKind::BashBody)?.content.clone();
         let end = self.expect(TokenKind::CBrace)?.span;
-        let commands = self.split_commands(&command);
+        let commands = if is_unsafe {
+            vec![command]
+        } else {
+            self.split_commands(&command)
+        };
 
         Ok(ast::Statement {
-            kind: ast::StatementKind::Bash { commands },
+            kind: ast::StatementKind::Bash {
+                is_unsafe,
+                commands,
+            },
             span: join(start, end),
         })
     }

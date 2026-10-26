@@ -258,7 +258,7 @@ const COLUMN: usize = 32;
 /// `nux help`: every command, and how to learn more.
 pub fn general() -> String {
     let mut text =
-        String::from("nux - build and manage packages from .nux definitions\n\nUsage:\n");
+        String::from("nux v0.2.0 - build and manage packages from .nux definitions\n\nUsage:\n");
     text.push_str("    nux <command> [options]\n    nux help [command]\n\nCommands:\n");
     for topic in Topic::ALL {
         let page = topic.page();

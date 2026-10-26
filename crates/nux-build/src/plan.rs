@@ -164,7 +164,7 @@ pub(crate) fn plan(
                 fingerprint.add("host").add(&host.path.to_string_lossy());
             }
             for command in &package.commands {
-                fingerprint.add(command);
+                fingerprint.add(&command.command);
             }
             for dependency in &package.dependencies {
                 fingerprint

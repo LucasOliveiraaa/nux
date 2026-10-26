@@ -55,6 +55,7 @@ pub enum TokenKind {
     While,
     Return,
     Program,
+    Unsafe,
     Bash,
     True,
     False,
@@ -168,6 +169,7 @@ impl TokenKind {
             Self::While => r"while",
             Self::Return => r"return",
             Self::Program => r"program",
+            Self::Unsafe => r"unsafe",
             Self::Bash => r"bash",
             Self::True => r"true",
             Self::False => r"false",
@@ -226,6 +228,7 @@ impl From<TokenKind> for String {
 
             TokenKind::Ident => "identifier".to_string(),
             TokenKind::Program => "program".to_string(),
+            TokenKind::Unsafe => "unsafe".to_string(),
             TokenKind::Bash => "bash".to_string(),
             TokenKind::True => "true".to_string(),
             TokenKind::False => "false".to_string(),
@@ -282,6 +285,7 @@ impl From<String> for TokenKind {
 
             "identifier" => TokenKind::Ident,
             "program" => TokenKind::Program,
+            "unsafe" => TokenKind::Unsafe,
             "bash" => TokenKind::Bash,
             "true" => TokenKind::True,
             "false" => TokenKind::False,

@@ -141,7 +141,7 @@ fn tool(name: &str, version: &str, extra: &str) -> String {
     )
 }
 
-const UP_TO_DATE: &str = "Nux v0.1.0
+const UP_TO_DATE: &str = "Nux v0.2.0
 
 Environment: test
 

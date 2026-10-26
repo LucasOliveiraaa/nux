@@ -52,6 +52,7 @@ pub enum StatementKind {
     },
     /// The commands inside a `bash { ... }` block; the span includes the braces.
     Bash {
+        is_unsafe: bool,
         commands: Vec<String>,
     },
     /// `return;`: stops evaluating the program.

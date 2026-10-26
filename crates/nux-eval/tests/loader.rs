@@ -53,7 +53,11 @@ fn loads_and_evaluates_a_file() {
         SourceKind::Git(_)
     ));
     assert_eq!(
-        result.commands,
+        result
+            .commands
+            .iter()
+            .map(|c| c.command.as_str())
+            .collect::<Vec<_>>(),
         ["./bootstrap --prefix=$NUX_PREFIX -- v4.2.0", "make -j2"]
     );
 

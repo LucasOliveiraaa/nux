@@ -103,6 +103,33 @@ impl Executor {
         }
     }
 
+    /// Runs `command` with both stdout and stderr appended to `log`, but without sandboxing
+    pub fn execute_logged_unsafe(&self, command: &str, log: &std::fs::File) -> Result<(), String> {
+        let stdout = log
+            .try_clone()
+            .map_err(|e| format!("Failed to open log: {}", e))?;
+        let stderr = log
+            .try_clone()
+            .map_err(|e| format!("Failed to open log: {}", e))?;
+        let mut process = std::process::Command::new("sh");
+        process
+            .arg("-c")
+            .arg(command)
+            .envs(&self.env)
+            .current_dir(&self.cwd)
+            .stdin(std::process::Stdio::null())
+            .stdout(stdout)
+            .stderr(stderr);
+        let status = process
+            .status()
+            .map_err(|e| format!("Failed to execute command: {}", e))?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(format!("Command exited with {}", status))
+        }
+    }
+
     /// Runs `program` with `args` directly, without a shell: arguments are
     /// passed as they are, and `program` is looked up on the `PATH` unless it
     /// contains a `/`. Only failing to start the program is an error; a

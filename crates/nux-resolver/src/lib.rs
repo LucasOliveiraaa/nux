@@ -12,7 +12,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use nux_eval::{Dependency, EvalResult, HostBinary, Library, Source, VersionDef};
+use nux_eval::{BashCommand, Dependency, EvalResult, HostBinary, Library, Source, VersionDef};
 
 pub mod graph;
 pub mod order;
@@ -36,7 +36,7 @@ pub struct PackageVersion {
     pub version: String,
     pub source: Option<Source>,
     pub dependencies: HashSet<Dependency>,
-    pub commands: Vec<String>,
+    pub commands: Vec<BashCommand>,
     pub bin: Option<String>,
     pub bin_name: Option<String>,
     /// Libraries registered by `export_lib`.
@@ -92,7 +92,7 @@ pub struct ResolvedPackage {
     pub name: String,
     pub version: String,
     pub source: Option<Source>,
-    pub commands: Vec<String>,
+    pub commands: Vec<BashCommand>,
     /// The executable registered by `set_bin`, relative to the install prefix.
     pub bin: Option<String>,
     /// Its link name in `bin/`, if `set_bin` gave one.

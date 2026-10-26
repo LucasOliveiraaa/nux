@@ -29,7 +29,10 @@ fn add(
 ) -> PackageVersionId {
     let def = VersionDef {
         version: version.into(),
-        commands: vec![format!("build {name} {version}")],
+        commands: vec![BashCommand {
+            is_unsafe: false,
+            command: format!("build {name} {version}"),
+        }],
         source: None,
         dependencies: dependencies.iter().cloned().collect(),
         bin: None,
@@ -148,7 +151,14 @@ fn dependencies_use_version_specific_edges() {
 
     let resolved = r.resolve(&[Request::new("cmake", "4.2.0")]).unwrap();
     let cmake = resolved.last().unwrap();
-    assert_eq!(cmake.commands, ["build cmake 4.2.0"]);
+    assert_eq!(
+        cmake
+            .commands
+            .iter()
+            .map(|c| c.command.as_str())
+            .collect::<Vec<_>>(),
+        ["build cmake 4.2.0"]
+    );
     assert_eq!(
         cmake.dependencies,
         [
@@ -444,7 +454,14 @@ fn resolves_evaluated_definitions() {
     assert_eq!(names, ["gcc@9.1", "cmake@3.0.0", "wine@9.0"]);
 
     let cmake = &resolved[1];
-    assert_eq!(cmake.commands, ["make old"]);
+    assert_eq!(
+        cmake
+            .commands
+            .iter()
+            .map(|c| c.command.as_str())
+            .collect::<Vec<_>>(),
+        ["make old"]
+    );
     assert!(matches!(
         cmake.source.as_ref().unwrap().kind,
         SourceKind::Git(_)

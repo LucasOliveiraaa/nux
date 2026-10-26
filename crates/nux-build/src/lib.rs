@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use nux_eval::BashCommand;
 use nux_executor::{Access, Executor, Sandbox};
 use nux_resolver::{PackageVersionId, ResolvedPackage};
 use serde_json::json;
@@ -575,7 +576,7 @@ impl Builder {
 
         let log = std::fs::File::create(&paths.log)
             .map_err(|e| BuildError::io(format!("cannot create `{}`", paths.log.display()), e))?;
-        for command in &package.commands {
+        for BashCommand { command, .. } in &package.commands {
             // The command first, so the log reads like a terminal session.
             let logged = writeln!(&log, "$ {command}").and_then(|()| (&log).flush());
             logged.map_err(|e| {

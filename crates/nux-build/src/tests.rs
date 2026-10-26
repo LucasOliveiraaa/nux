@@ -115,7 +115,14 @@ fn resolve(
             .collect();
         let version = VersionDef {
             version: d.version.into(),
-            commands: d.commands,
+            commands: d
+                .commands
+                .iter()
+                .map(|c| BashCommand {
+                    is_unsafe: false,
+                    command: c.clone(),
+                })
+                .collect(),
             source: d.source,
             dependencies,
             bin: d.bin.map(Into::into),

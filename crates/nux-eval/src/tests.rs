@@ -39,6 +39,7 @@ fn commands(body: &str) -> Vec<String> {
             .versions
             .into_iter()
             .flat_map(|v| v.commands)
+            .map(|c| c.command)
             .collect(),
         Err((arena, e)) => panic!("{}", e.render(&arena)),
     }
@@ -320,7 +321,13 @@ fn each_version_has_its_own_declarations() {
     assert_eq!(versions, ["3.0.0", "4.2.0"]);
 
     let old = result.version("3.0.0").unwrap();
-    assert_eq!(old.commands, ["make v3"]);
+    assert_eq!(
+        old.commands
+            .iter()
+            .map(|c| c.command.as_str())
+            .collect::<Vec<_>>(),
+        ["make v3"]
+    );
     assert!(matches!(
         old.source.as_ref().unwrap().kind,
         SourceKind::Git(_)
@@ -334,7 +341,13 @@ fn each_version_has_its_own_declarations() {
     );
 
     let new = result.version("4.2.0").unwrap();
-    assert_eq!(new.commands, ["make v4.2.0"]);
+    assert_eq!(
+        new.commands
+            .iter()
+            .map(|c| c.command.as_str())
+            .collect::<Vec<_>>(),
+        ["make v4.2.0"]
+    );
     assert!(
         matches!(new.source.as_ref().unwrap().kind, SourceKind::Url(ref u) if u.ends_with("4.2.0.tar.gz"))
     );
@@ -359,7 +372,14 @@ fn last_version_is_finalized_at_end_of_program() {
     assert_eq!(result.versions.len(), 2);
     assert!(result.versions[0].commands.is_empty());
     assert_eq!(result.versions[1].version, "2");
-    assert_eq!(result.versions[1].commands, ["last"]);
+    assert_eq!(
+        result.versions[1]
+            .commands
+            .iter()
+            .map(|c| c.command.as_str())
+            .collect::<Vec<_>>(),
+        ["last"]
+    );
 }
 
 #[test]
@@ -373,7 +393,12 @@ fn version_can_be_declared_conditionally() {
     let summary: Vec<_> = result
         .versions
         .iter()
-        .map(|v| (v.version.as_str(), v.commands.clone()))
+        .map(|v| {
+            (
+                v.version.as_str(),
+                v.commands.iter().map(|c| c.command.clone()).collect(),
+            )
+        })
         .collect();
     assert_eq!(
         summary,
@@ -606,7 +631,14 @@ fn recipes_see_host_executables() {
         if host_bin("gcc") { bash { ${v} } }
     }"#,
     );
-    assert_eq!(result.versions[0].commands, ["13.1.0"]);
+    assert_eq!(
+        result.versions[0]
+            .commands
+            .iter()
+            .map(|c| c.command.as_str())
+            .collect::<Vec<_>>(),
+        ["13.1.0"]
+    );
 }
 
 #[test]
@@ -697,7 +729,14 @@ fn return_ends_the_program() {
     );
     // The current version is kept; nothing after `return` runs.
     assert_eq!(result.versions.len(), 1);
-    assert_eq!(result.versions[0].commands, ["first", "loop 1", "loop 2"]);
+    assert_eq!(
+        result.versions[0]
+            .commands
+            .iter()
+            .map(|c| c.command.as_str())
+            .collect::<Vec<_>>(),
+        ["first", "loop 1", "loop 2"]
+    );
 
     // Returning before any version is still a program without versions.
     let (arena, program) = parse("program p { return; version(\"1\"); }");
