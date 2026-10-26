@@ -100,7 +100,10 @@ fn hidden_directories_are_empty_and_writable() {
         .expose("/nonexistent", Access::ReadOnly);
     // `/tmp` only shows the exposed directory; `home` is empty and writable.
     let script = format!(
-        "ls -A /tmp | wc -l; ls -A /run | wc -l; echo cache > {home}/c && cat {home}/c; touch /tmp/new && echo tmp ok",
+        "ls -A /tmp | wc -l; \
+     n=$(ls -A /run | wc -l); echo $n; \
+     [ $n -eq 0 ] || ls -A /run | sed 's/^/run: /'; \
+     echo cache > {home}/c && cat {home}/c; touch /tmp/new && echo tmp ok",
         home = home.display()
     );
     let (code, out) = run(&sandbox, Path::new("/"), &script);

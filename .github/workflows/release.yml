@@ -122,7 +122,7 @@ jobs:
       - name: Checksums and installer
         run: |
           set -euo pipefail
-          cp install.sh dist/install.sh
+          cp scripts/install.sh dist/install.sh
           cd dist
           sha256sum -- *.tar.gz > ../SHA256SUMS
           mv ../SHA256SUMS SHA256SUMS
