@@ -15,11 +15,19 @@ list the programs you want in an environment (`Nux.toml`), and run
 - records exact versions and sources in `Nux.lock`, so that builds can be
   reproduced.
 
-## Building from source
+## Installation
 
-You need Linux, Rust 1.85 or later, `git`, `curl` and a C compiler.
+You can install Nux with this installation script:
 
 ```sh
+curl -fsSL https://github.com/LucasOliveiraaa/nux/releases/latest/download/install.sh | bash
+```
+
+If you prefer to build from source, you need Linux, Rust 1.85 or later, `git`, `curl` and a C compiler.
+
+```sh
+git clone https://github.com/LucasOliveiraaa/nux.git
+cd nux
 cargo build --release
 cp target/release/nux ~/.local/bin/    # or anywhere on your PATH
 ```

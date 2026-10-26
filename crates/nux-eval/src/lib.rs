@@ -42,12 +42,18 @@ pub enum Dependency {
     Runtime { name: String, version: String },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BashCommand {
+    pub is_unsafe: bool,
+    pub command: String,
+}
+
 /// Everything declared between one `version(...)` call and the next (or the
 /// end of the program).
 #[derive(Debug, Clone)]
 pub struct VersionDef {
     pub version: String,
-    pub commands: Vec<String>,
+    pub commands: Vec<BashCommand>,
     pub source: Option<Source>,
     pub dependencies: HashSet<Dependency>,
     /// The executable registered by `set_bin`, relative to the install prefix.

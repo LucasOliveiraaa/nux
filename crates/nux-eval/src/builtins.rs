@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use crate::build_systems::{BuildSystem, Common, assignment};
 use crate::evaluator::{Evaluator, ParsedFuncArg};
 use crate::{
-    Dependency, EvalError, HostBinary, Library, Result, Source, SourceKind, Value, ValueType,
-    VersionDef,
+    BashCommand, Dependency, EvalError, HostBinary, Library, Result, Source, SourceKind, Value,
+    ValueType, VersionDef,
 };
 
 impl Evaluator<'_> {
@@ -402,7 +402,15 @@ impl Evaluator<'_> {
         self.context
             .current_version(&what, call_span)?
             .commands
-            .extend(system.commands(&common));
+            .extend(
+                system
+                    .commands(&common)
+                    .into_iter()
+                    .map(|command| BashCommand {
+                        is_unsafe: false,
+                        command,
+                    }),
+            );
         Ok(Value::Null)
     }
 }

@@ -287,6 +287,22 @@ where
             writeln!(out, "\nSync cancelled; nothing was changed.").map_err(w)?;
             return Ok(Outcome::Cancelled);
         }
+
+        for step in &plan.steps {
+            for command in &step.package.commands {
+                if !command.is_unsafe {
+                    continue;
+                }
+
+                writeln!(out, "\n{} package `{}` requests authorization to run the following command on your machine:", term.paint(Style::Warning, "warning:"), step.package.name).map_err(w)?;
+                writeln!(out, "  $ {}", command.command).map_err(w)?;
+                writeln!(out, "\nThis command is marked as unsafe and will not have the sandbox's protections. If you are sure you want to run it, type 'yes' and press Enter.").map_err(w)?;
+                if !options.yes && !confirm(&mut out, &mut input)? {
+                    writeln!(out, "\nSync cancelled; nothing was changed.").map_err(w)?;
+                    return Ok(Outcome::Cancelled);
+                }
+            }
+        }
     }
 
     if let Some(edit) = &edit {

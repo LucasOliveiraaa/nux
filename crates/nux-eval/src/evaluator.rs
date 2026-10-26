@@ -8,7 +8,7 @@ use nux_parser::ast::{self, FunctionArg, Ident};
 use regex::Regex;
 
 use crate::context::EvalContext;
-use crate::{EvalError, EvalResult, Host, Result, Value};
+use crate::{BashCommand, EvalError, EvalResult, Host, Result, Value};
 
 /// An evaluated call argument.
 pub(crate) struct ParsedFuncArg {
@@ -119,11 +119,19 @@ impl<'e> Evaluator<'e> {
                 }
             }
             ast::StatementKind::Return => return Ok(Flow::Return),
-            ast::StatementKind::Bash { commands } => {
+            ast::StatementKind::Bash {
+                is_unsafe,
+                commands,
+            } => {
                 // Unknown names are left alone: `${HOME}` and friends belong to the shell.
                 let interpolated = commands
                     .iter()
-                    .map(|command| self.interpolate_string(command, statement.span, false))
+                    .map(|command| {
+                        Ok(BashCommand {
+                            is_unsafe: *is_unsafe,
+                            command: self.interpolate_string(command, statement.span, false)?,
+                        })
+                    })
                     .collect::<Result<Vec<_>>>()?;
                 self.context
                     .current_version("`bash` block", statement.span)?

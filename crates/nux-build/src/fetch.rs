@@ -56,7 +56,7 @@ fn fetch_into(
         message,
     };
 
-    remove(tmp).map_err(&fail)?;
+    remove(tmp).map_err(fail)?;
     std::fs::create_dir_all(&paths.root)
         .map_err(|e| fail(format!("cannot create `{}`: {e}", paths.root.display())))?;
 
@@ -67,8 +67,8 @@ fn fetch_into(
                 return Err(fail(format!("`{url}` is not a repository URL")));
             }
             let mirror = workspace.git_mirror(url);
-            let _lock = CacheLock::take(&mirror).map_err(&fail)?;
-            cache::init_mirror(&mirror).map_err(&fail)?;
+            let _lock = CacheLock::take(&mirror).map_err(fail)?;
+            cache::init_mirror(&mirror).map_err(fail)?;
             // Fetches `refspecs` from `url` into the mirror, with progress.
             let network = |options: &[&str], refspecs: &[&str]| {
                 let mut fetch = Command::new("git");
@@ -110,7 +110,7 @@ fn fetch_into(
                                 "+refs/tags/*:refs/nux/tags/*",
                             ],
                         )
-                        .map_err(&fail)?;
+                        .map_err(fail)?;
                     }
                     if !cache::has_commit(&mirror, revision) {
                         return Err(fail(format!(
@@ -125,15 +125,15 @@ fn fetch_into(
                         &["--depth", "1"],
                         &[&format!("+{reference}:refs/nux/fetched")],
                     )
-                    .map_err(&fail)?;
+                    .map_err(fail)?;
                     (
-                        cache::resolve(&mirror, "refs/nux/fetched").map_err(&fail)?,
+                        cache::resolve(&mirror, "refs/nux/fetched").map_err(fail)?,
                         Origin::Network,
                     )
                 }
             };
-            cache::keep(&mirror, &commit).map_err(&fail)?;
-            cache::check_out(&mirror, &commit, tmp).map_err(&fail)?;
+            cache::keep(&mirror, &commit).map_err(fail)?;
+            cache::check_out(&mirror, &commit, tmp).map_err(fail)?;
             (
                 None,
                 SourceIdentity {
@@ -162,7 +162,7 @@ fn fetch_into(
                 ),
                 None => {
                     let sha256 = download(url, source.proxy.as_deref(), &output, on_progress)
-                        .map_err(&fail)?;
+                        .map_err(fail)?;
                     if let Some(expected) =
                         pin.sha256.as_ref().filter(|expected| **expected != sha256)
                     {
@@ -185,7 +185,7 @@ fn fetch_into(
         SourceKind::Local(_) => unreachable!("local sources are not downloaded"),
     };
 
-    remove(&paths.source).map_err(&fail)?;
+    remove(&paths.source).map_err(fail)?;
     std::fs::rename(tmp, &paths.source)
         .map_err(|e| fail(format!("cannot move download into place: {e}")))?;
 
