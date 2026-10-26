@@ -148,6 +148,7 @@ version = "0.2.0"
 dependencies = [
  "nux-eval",
  "nux-executor",
+ "nux-firebox",
  "nux-resolver",
  "serde_json",
  "sha2",

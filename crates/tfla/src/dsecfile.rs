@@ -351,7 +351,7 @@ impl DSecFile {
         self.to_writer().save(&self.path).map_err(DSecError::Io)
     }
 
-    /// Writes the file to a different path (does not change [`self.path`]).
+    /// Writes the file to a different path (does not change `self.path`).
     pub fn save_as(&self, path: impl AsRef<Path>) -> Result<()> {
         std::fs::write(path, self.to_writer().as_ref()).map_err(DSecError::Io)
     }
