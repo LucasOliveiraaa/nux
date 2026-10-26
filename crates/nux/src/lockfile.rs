@@ -54,7 +54,11 @@ impl LockedPackage {
     fn identity(&self) -> SourceIdentity {
         SourceIdentity {
             revision: self.revision.clone(),
-            sha256: self.checksum.as_ref().and_then(|c| c.strip_prefix("sha256:")).map(str::to_string),
+            sha256: self
+                .checksum
+                .as_ref()
+                .and_then(|c| c.strip_prefix("sha256:"))
+                .map(str::to_string),
         }
     }
 }
@@ -79,14 +83,18 @@ impl Lock {
     /// Reads the lock at `path`; `None` when there is none.
     pub fn read(path: &Path) -> Result<Option<Self>, String> {
         match std::fs::read_to_string(path) {
-            Ok(text) => Self::parse(&text).map(Some).map_err(|e| format!("invalid `{}`: {e}", path.display())),
+            Ok(text) => Self::parse(&text)
+                .map(Some)
+                .map_err(|e| format!("invalid `{}`: {e}", path.display())),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(format!("cannot read `{}`: {e}", path.display())),
         }
     }
 
     pub fn parse(text: &str) -> Result<Self, String> {
-        let table: Table = text.parse().map_err(|e: toml::de::Error| e.message().to_string())?;
+        let table: Table = text
+            .parse()
+            .map_err(|e: toml::de::Error| e.message().to_string())?;
         match table.get("version") {
             Some(Value::Integer(FORMAT_VERSION)) => {}
             Some(other) => return Err(format!("unsupported lock format version {other}")),
@@ -114,14 +122,21 @@ impl Lock {
                     None => Vec::new(),
                     Some(Value::Array(items)) => items
                         .iter()
-                        .map(|i| i.as_str().map(str::to_string).ok_or("`dependencies` must hold strings"))
+                        .map(|i| {
+                            i.as_str()
+                                .map(str::to_string)
+                                .ok_or("`dependencies` must hold strings")
+                        })
                         .collect::<Result<_, _>>()?,
                     Some(_) => return Err("`dependencies` must be an array".into()),
                 };
                 Ok(LockedPackage {
                     name: string("name")?.ok_or("a package has no `name`")?,
                     version: string("version")?.ok_or("a package has no `version`")?,
-                    requested: entry.get("requested").and_then(Value::as_bool).unwrap_or(false),
+                    requested: entry
+                        .get("requested")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
                     dependencies,
                     source: string("source")?,
                     revision: string("revision")?,
@@ -192,7 +207,12 @@ impl Lock {
                 let locked = self.get(&package.name, &package.version)?;
                 let source = package.source.as_ref().map(source_id);
                 (locked.source == source && package.host.is_none())
-                    .then(|| ((package.name.clone(), package.version.clone()), locked.identity()))
+                    .then(|| {
+                        (
+                            (package.name.clone(), package.version.clone()),
+                            locked.identity(),
+                        )
+                    })
                     .filter(|(_, identity)| !identity.is_empty())
             })
             .collect()
@@ -210,7 +230,11 @@ impl Lock {
             .iter()
             .map(|step| {
                 let package = &step.package;
-                let source = package.source.as_ref().filter(|_| package.host.is_none()).map(source_id);
+                let source = package
+                    .source
+                    .as_ref()
+                    .filter(|_| package.host.is_none())
+                    .map(source_id);
                 let locked = previous
                     .and_then(|lock| lock.get(&package.name, &package.version))
                     .filter(|locked| locked.source == source)
@@ -219,10 +243,15 @@ impl Lock {
                 let identity = match (&source, locked) {
                     (None, _) => SourceIdentity::default(),
                     (Some(_), Some(locked)) => locked,
-                    (Some(_), None) => workspace.source_identity(&package.name, &package.version).unwrap_or_default(),
+                    (Some(_), None) => workspace
+                        .source_identity(&package.name, &package.version)
+                        .unwrap_or_default(),
                 };
-                let mut dependencies: Vec<String> =
-                    package.dependencies.iter().map(|d| format!("{} {}", d.name, d.version)).collect();
+                let mut dependencies: Vec<String> = package
+                    .dependencies
+                    .iter()
+                    .map(|d| format!("{} {}", d.name, d.version))
+                    .collect();
                 dependencies.sort();
                 dependencies.dedup();
                 LockedPackage {
@@ -247,14 +276,21 @@ impl Lock {
         let by_name = |lock: &Lock| {
             let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();
             for p in &lock.packages {
-                map.entry(p.name.clone()).or_default().push(p.version.clone());
+                map.entry(p.name.clone())
+                    .or_default()
+                    .push(p.version.clone());
             }
             map
         };
         let (old_names, new_names) = (by_name(self), by_name(new));
         for (name, new_versions) in &new_names {
             match old_names.get(name) {
-                None => return Some(format!("`{name}` {} would be added", new_versions.join(", "))),
+                None => {
+                    return Some(format!(
+                        "`{name}` {} would be added",
+                        new_versions.join(", ")
+                    ));
+                }
                 Some(old_versions) if old_versions != new_versions => {
                     return Some(format!(
                         "`{name}` would change from {} to {}",
@@ -265,7 +301,10 @@ impl Lock {
                 Some(_) => {}
             }
         }
-        if let Some((name, versions)) = old_names.iter().find(|(name, _)| !new_names.contains_key(*name)) {
+        if let Some((name, versions)) = old_names
+            .iter()
+            .find(|(name, _)| !new_names.contains_key(*name))
+        {
             return Some(format!("`{name}` {} would be removed", versions.join(", ")));
         }
         for (old, new) in self.packages.iter().zip(&new.packages) {
@@ -282,7 +321,10 @@ impl Lock {
             } else {
                 continue;
             };
-            return Some(format!("the {what} of `{}` {} would change", new.name, new.version));
+            return Some(format!(
+                "the {what} of `{}` {} would change",
+                new.name, new.version
+            ));
         }
         None
     }
@@ -293,7 +335,11 @@ mod tests {
     use super::*;
 
     fn package(name: &str, version: &str) -> LockedPackage {
-        LockedPackage { name: name.into(), version: version.into(), ..Default::default() }
+        LockedPackage {
+            name: name.into(),
+            version: version.into(),
+            ..Default::default()
+        }
     }
 
     fn sample() -> Lock {
@@ -306,7 +352,10 @@ mod tests {
                     revision: Some("0123abcd".into()),
                     ..package("app", "1.0")
                 },
-                LockedPackage { host: Some("/usr/bin/gcc".into()), ..package("gcc", "14.2.0") },
+                LockedPackage {
+                    host: Some("/usr/bin/gcc".into()),
+                    ..package("gcc", "14.2.0")
+                },
                 LockedPackage {
                     source: Some("url+https://example.com/zlib.tar.gz".into()),
                     checksum: Some("sha256:abc".into()),
@@ -330,10 +379,19 @@ mod tests {
     #[test]
     fn rejects_malformed_locks() {
         assert_eq!(Lock::parse("").unwrap_err(), "missing `version`");
-        assert_eq!(Lock::parse("version = 2").unwrap_err(), "unsupported lock format version 2");
-        assert_eq!(Lock::parse("version = 1\n[[package]]\nversion = \"1\"").unwrap_err(), "a package has no `name`");
         assert_eq!(
-            Lock::parse("version = 1\n[[package]]\nname = \"a\"\nversion = \"1\"\ndependencies = [1]").unwrap_err(),
+            Lock::parse("version = 2").unwrap_err(),
+            "unsupported lock format version 2"
+        );
+        assert_eq!(
+            Lock::parse("version = 1\n[[package]]\nversion = \"1\"").unwrap_err(),
+            "a package has no `name`"
+        );
+        assert_eq!(
+            Lock::parse(
+                "version = 1\n[[package]]\nname = \"a\"\nversion = \"1\"\ndependencies = [1]"
+            )
+            .unwrap_err(),
             "`dependencies` must hold strings"
         );
     }
@@ -345,27 +403,52 @@ mod tests {
 
         let mut new = old.clone();
         new.packages[2].version = "1.3.2".into();
-        assert_eq!(old.difference(&new).unwrap(), "`zlib` would change from 1.3.1 to 1.3.2");
+        assert_eq!(
+            old.difference(&new).unwrap(),
+            "`zlib` would change from 1.3.1 to 1.3.2"
+        );
 
         let mut new = old.clone();
         new.packages.remove(1);
-        assert_eq!(old.difference(&new).unwrap(), "`gcc` 14.2.0 would be removed");
+        assert_eq!(
+            old.difference(&new).unwrap(),
+            "`gcc` 14.2.0 would be removed"
+        );
         assert_eq!(new.difference(&old).unwrap(), "`gcc` 14.2.0 would be added");
 
         let mut new = old.clone();
         new.packages[0].revision = Some("ffff".into());
-        assert_eq!(old.difference(&new).unwrap(), "the source revision or checksum of `app` 1.0 would change");
+        assert_eq!(
+            old.difference(&new).unwrap(),
+            "the source revision or checksum of `app` 1.0 would change"
+        );
 
         let mut new = old.clone();
         new.packages[0].dependencies.pop();
-        assert_eq!(old.difference(&new).unwrap(), "the dependencies of `app` 1.0 would change");
+        assert_eq!(
+            old.difference(&new).unwrap(),
+            "the dependencies of `app` 1.0 would change"
+        );
     }
 
     #[test]
     fn source_ids() {
-        let source = |kind, tag: Option<&str>| Source { kind, tag: tag.map(Into::into), proxy: Some("p".into()) };
-        assert_eq!(source_id(&source(SourceKind::Git("u".into()), Some("v1"))), "git+u#v1");
-        assert_eq!(source_id(&source(SourceKind::Url("u".into()), None)), "url+u");
-        assert_eq!(source_id(&source(SourceKind::Local("src".into()), None)), "local+src");
+        let source = |kind, tag: Option<&str>| Source {
+            kind,
+            tag: tag.map(Into::into),
+            proxy: Some("p".into()),
+        };
+        assert_eq!(
+            source_id(&source(SourceKind::Git("u".into()), Some("v1"))),
+            "git+u#v1"
+        );
+        assert_eq!(
+            source_id(&source(SourceKind::Url("u".into()), None)),
+            "url+u"
+        );
+        assert_eq!(
+            source_id(&source(SourceKind::Local("src".into()), None)),
+            "local+src"
+        );
     }
 }

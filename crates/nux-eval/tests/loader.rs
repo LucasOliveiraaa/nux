@@ -40,10 +40,18 @@ fn loads_and_evaluates_a_file() {
     let result = result.unwrap_or_else(|e| panic!("{}", e.render(&arena)));
 
     assert_eq!(result.name, "cmake");
-    let [result] = &result.versions[..] else { panic!("expected one version") };
+    let [result] = &result.versions[..] else {
+        panic!("expected one version")
+    };
     assert_eq!(result.version, "4.2.0");
-    assert!(result.dependencies.contains(&Dependency::Build { name: "gcc".into(), version: "latest".into() }));
-    assert!(matches!(result.source.as_ref().unwrap().kind, SourceKind::Git(_)));
+    assert!(result.dependencies.contains(&Dependency::Build {
+        name: "gcc".into(),
+        version: "latest".into()
+    }));
+    assert!(matches!(
+        result.source.as_ref().unwrap().kind,
+        SourceKind::Git(_)
+    ));
     assert_eq!(
         result.commands,
         ["./bootstrap --prefix=$NUX_PREFIX -- v4.2.0", "make -j2"]
@@ -148,6 +156,9 @@ fn spans_resolve_to_their_own_file() {
     let span = err.span().unwrap();
     assert_eq!(arena.path(span.file()), Some(bad.as_path()));
     assert_eq!(arena.slice(span), Some("1"));
-    assert!(err.render(&arena).contains(&format!("--> {}:1:21", bad.display())));
+    assert!(
+        err.render(&arena)
+            .contains(&format!("--> {}:1:21", bad.display()))
+    );
     assert_eq!(arena.iter().count(), 2);
 }

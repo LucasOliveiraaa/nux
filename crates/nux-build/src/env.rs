@@ -34,10 +34,12 @@ impl DependencyExports {
     /// Collects the exports of `step`'s dependencies: direct ones first, so
     /// they win over transitive ones in search paths.
     pub fn of(plan: &BuildPlan, step: &Step) -> Self {
-        let by_id: HashMap<PackageVersionId, &Step> = plan.steps.iter().map(|s| (s.package.id, s)).collect();
+        let by_id: HashMap<PackageVersionId, &Step> =
+            plan.steps.iter().map(|s| (s.package.id, s)).collect();
         let mut exports = Self::default();
         let mut seen = HashSet::new();
-        let mut queue: VecDeque<PackageVersionId> = step.package.dependencies.iter().map(|d| d.id).collect();
+        let mut queue: VecDeque<PackageVersionId> =
+            step.package.dependencies.iter().map(|d| d.id).collect();
 
         while let Some(id) = queue.pop_front() {
             if !seen.insert(id) {
@@ -66,7 +68,9 @@ impl DependencyExports {
             if !dep.package.libraries.is_empty() {
                 push_unique(&mut exports.pkg_config, prefix.join("share/pkgconfig"));
             }
-            exports.prefixes.push((variable_name(&dep.package.name), prefix.clone()));
+            exports
+                .prefixes
+                .push((variable_name(&dep.package.name), prefix.clone()));
         }
         exports.pkg_config.retain(|dir| dir.is_dir());
         exports
@@ -75,7 +79,11 @@ impl DependencyExports {
     /// The variables to set, each extending its value in `base` (the
     /// process environment).
     pub fn vars(&self, base: impl Fn(&str) -> Option<String>) -> Vec<(String, String)> {
-        let join = |dirs: &[PathBuf]| dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>();
+        let join = |dirs: &[PathBuf]| {
+            dirs.iter()
+                .map(|d| d.display().to_string())
+                .collect::<Vec<_>>()
+        };
         let extend = |name: &str, mut items: Vec<String>, separator: &str| {
             items.extend(base(name).filter(|v| !v.is_empty()));
             (name.to_string(), items.join(separator))
@@ -84,7 +92,11 @@ impl DependencyExports {
         let mut vars = Vec::new();
         if !self.include.is_empty() {
             vars.push(extend("CPATH", join(&self.include), ":"));
-            let flags = self.include.iter().map(|d| format!("-I{}", d.display())).collect();
+            let flags = self
+                .include
+                .iter()
+                .map(|d| format!("-I{}", d.display()))
+                .collect();
             vars.push(extend("CPPFLAGS", flags, " "));
         }
         if !self.lib.is_empty() {
@@ -101,7 +113,11 @@ impl DependencyExports {
             vars.push(extend("PKG_CONFIG_PATH", join(&self.pkg_config), ":"));
         }
         if !self.prefixes.is_empty() {
-            let prefixes = self.prefixes.iter().map(|(_, p)| p.clone()).collect::<Vec<_>>();
+            let prefixes = self
+                .prefixes
+                .iter()
+                .map(|(_, p)| p.clone())
+                .collect::<Vec<_>>();
             vars.push(extend("CMAKE_PREFIX_PATH", join(&prefixes), ":"));
         }
         for (name, prefix) in &self.prefixes {
@@ -164,7 +180,10 @@ mod tests {
                 ("CPPFLAGS".into(), "-I/p/z/include".into()),
                 ("LIBRARY_PATH".into(), "/p/z/lib".into()),
                 ("LD_LIBRARY_PATH".into(), "/p/z/lib".into()),
-                ("LDFLAGS".into(), "-L/p/z/lib -Wl,-rpath,/p/z/lib -O2".into()),
+                (
+                    "LDFLAGS".into(),
+                    "-L/p/z/lib -Wl,-rpath,/p/z/lib -O2".into()
+                ),
                 ("CMAKE_PREFIX_PATH".into(), "/p/z".into()),
                 ("NUX_DEP_ZLIB".into(), "/p/z".into()),
             ]

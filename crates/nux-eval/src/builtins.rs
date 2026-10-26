@@ -7,7 +7,10 @@ use std::collections::HashMap;
 
 use crate::build_systems::{BuildSystem, Common, assignment};
 use crate::evaluator::{Evaluator, ParsedFuncArg};
-use crate::{Dependency, EvalError, HostBinary, Library, Result, Source, SourceKind, Value, ValueType, VersionDef};
+use crate::{
+    Dependency, EvalError, HostBinary, Library, Result, Source, SourceKind, Value, ValueType,
+    VersionDef,
+};
 
 impl Evaluator<'_> {
     pub(crate) fn eval_function_call(
@@ -66,7 +69,10 @@ impl Evaluator<'_> {
                     }
                 };
                 if tag.is_some() && !matches!(kind, SourceKind::Git(_)) {
-                    return Err(EvalError::new("`tag` can only be used with `git`", call_span));
+                    return Err(EvalError::new(
+                        "`tag` can only be used with `git`",
+                        call_span,
+                    ));
                 }
                 let current = self.context.current_version("`source`", call_span)?;
                 if current.source.is_some() {
@@ -84,7 +90,10 @@ impl Evaluator<'_> {
                     callee,
                     call_span,
                     args,
-                    &[Param::required("path", ValueType::String), Param::optional("name", ValueType::String)],
+                    &[
+                        Param::required("path", ValueType::String),
+                        Param::optional("name", ValueType::String),
+                    ],
                 )?;
                 let path = prefix_path("set_bin", path.unwrap().to_string(), call_span)?;
                 let name = name.map(|n| n.to_string());
@@ -113,11 +122,17 @@ impl Evaluator<'_> {
                 let name = name.unwrap().to_string();
                 if name.is_empty() || name.contains(['/', ' ']) {
                     return Err(EvalError::new(
-                        format!("`export_lib` expects a library name such as \"z\" for libz, found `{name}`"),
+                        format!(
+                            "`export_lib` expects a library name such as \"z\" for libz, found `{name}`"
+                        ),
                         call_span,
                     ));
                 }
-                let lib = prefix_path("export_lib", lib.map_or("lib".into(), |l| l.to_string()), call_span)?;
+                let lib = prefix_path(
+                    "export_lib",
+                    lib.map_or("lib".into(), |l| l.to_string()),
+                    call_span,
+                )?;
                 // `include = ""` exports a library without headers.
                 let include = match include.map_or("include".into(), |i| i.to_string()) {
                     include if include.is_empty() => None,
@@ -125,7 +140,10 @@ impl Evaluator<'_> {
                 };
                 let current = self.context.current_version("`export_lib`", call_span)?;
                 if current.libraries.iter().any(|l| l.name == name) {
-                    return Err(EvalError::new(format!("library `{name}` is already exported"), call_span));
+                    return Err(EvalError::new(
+                        format!("library `{name}` is already exported"),
+                        call_span,
+                    ));
                 }
                 current.libraries.push(Library { name, lib, include });
                 Ok(Value::Null)
@@ -140,7 +158,9 @@ impl Evaluator<'_> {
                 Ok(self
                     .host
                     .find(&name.unwrap().to_string())
-                    .map_or(Value::Null, |path| Value::String(path.display().to_string())))
+                    .map_or(Value::Null, |path| {
+                        Value::String(path.display().to_string())
+                    }))
             }
             "host_version" => {
                 let [name, flag] = resolve_function_args(
@@ -168,7 +188,9 @@ impl Evaluator<'_> {
                 let name = name.unwrap().to_string();
                 let Some(path) = self.host.find(&name) else {
                     return Err(EvalError::new(
-                        format!("the host has no `{name}` executable; guard this call with `if host_bin(\"{name}\")`"),
+                        format!(
+                            "the host has no `{name}` executable; guard this call with `if host_bin(\"{name}\")`"
+                        ),
                         call_span,
                     ));
                 };
@@ -191,8 +213,12 @@ impl Evaluator<'_> {
                     ],
                 )?;
                 let name = name.unwrap().to_string();
-                let version = version.map(|v| v.to_string()).unwrap_or_else(|| "latest".to_string());
-                let ty = ty.map(|t| t.to_string()).unwrap_or_else(|| "build".to_string());
+                let version = version
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "latest".to_string());
+                let ty = ty
+                    .map(|t| t.to_string())
+                    .unwrap_or_else(|| "build".to_string());
                 let dependency = match ty.as_str() {
                     "build" => Dependency::Build { name, version },
                     "runtime" => Dependency::Runtime { name, version },
@@ -244,7 +270,9 @@ impl Evaluator<'_> {
                 )?;
                 Ok(Value::String(text.unwrap().to_string().trim().to_string()))
             }
-            "cmake" | "meson" | "make" | "autotools" | "cargo" | "go" => self.build_system(callee, call_span, args),
+            "cmake" | "meson" | "make" | "autotools" | "cargo" | "go" => {
+                self.build_system(callee, call_span, args)
+            }
             _ => Err(EvalError::new(
                 format!("undefined function `{}`", callee.name),
                 callee.span,
@@ -256,7 +284,12 @@ impl Evaluator<'_> {
 impl Evaluator<'_> {
     /// `cmake(...)`, `meson(...)` and the other build-system helpers: adds
     /// the commands of a standard build to the current version.
-    fn build_system(&mut self, callee: &Ident, call_span: Span, args: Vec<ParsedFuncArg>) -> Result<Value> {
+    fn build_system(
+        &mut self,
+        callee: &Ident,
+        call_span: Span,
+        args: Vec<ParsedFuncArg>,
+    ) -> Result<Value> {
         use ValueType::{Boolean, List, Number, String as Str};
         let name = callee.name.as_str();
         let specific = match name {
@@ -265,15 +298,24 @@ impl Evaluator<'_> {
                 Param::optional("build_dir", Str),
                 Param::optional("generator", Str),
             ],
-            "meson" => vec![Param::optional("build_type", Str), Param::optional("build_dir", Str)],
+            "meson" => vec![
+                Param::optional("build_type", Str),
+                Param::optional("build_dir", Str),
+            ],
             "make" => vec![
                 Param::optional("targets", List),
                 Param::optional("install", Str),
                 Param::optional("prefix_var", Str),
             ],
             "autotools" => vec![Param::optional("reconf", Boolean)],
-            "cargo" => vec![Param::optional("features", List), Param::optional("locked", Boolean)],
-            "go" => vec![Param::optional("packages", List), Param::optional("ldflags", Str)],
+            "cargo" => vec![
+                Param::optional("features", List),
+                Param::optional("locked", Boolean),
+            ],
+            "go" => vec![
+                Param::optional("packages", List),
+                Param::optional("ldflags", Str),
+            ],
             _ => unreachable!("not a build-system helper: {name}"),
         };
         let mut params = vec![
@@ -287,7 +329,10 @@ impl Evaluator<'_> {
         let mut values = resolve_args(callee, call_span, args, &params)?.into_iter();
         let mut next = || values.next().flatten();
 
-        let mut common = Common { options: string_list(next(), "options", callee, call_span)?, ..Common::default() };
+        let mut common = Common {
+            options: string_list(next(), "options", callee, call_span)?,
+            ..Common::default()
+        };
         if let Some(dir) = next() {
             common.dir = dir.to_string();
         }
@@ -296,18 +341,26 @@ impl Evaluator<'_> {
         }
         if let Some(Value::Number(jobs)) = next() {
             if jobs < 1.0 || jobs.fract() != 0.0 {
-                return Err(EvalError::new(format!("`jobs` of `{name}` must be a positive whole number"), call_span));
+                return Err(EvalError::new(
+                    format!("`jobs` of `{name}` must be a positive whole number"),
+                    call_span,
+                ));
             }
             common.jobs = (jobs as u64).to_string();
         }
         for item in string_list(next(), "env", callee, call_span)? {
             let pair = assignment(&item).ok_or_else(|| {
-                EvalError::new(format!("`env` of `{name}` expects `NAME=value` entries, found `{item}`"), call_span)
+                EvalError::new(
+                    format!("`env` of `{name}` expects `NAME=value` entries, found `{item}`"),
+                    call_span,
+                )
             })?;
             common.env.push(pair);
         }
 
-        let string = |value: Option<Value>, default: &str| value.map_or(default.to_string(), |v| v.to_string());
+        let string = |value: Option<Value>, default: &str| {
+            value.map_or(default.to_string(), |v| v.to_string())
+        };
         let flag = |value: Option<Value>| matches!(value, Some(Value::Boolean(true)));
         let system = match name {
             "cmake" => BuildSystem::Cmake {
@@ -315,14 +368,19 @@ impl Evaluator<'_> {
                 build_dir: string(next(), "build"),
                 generator: next().map(|v| v.to_string()),
             },
-            "meson" => BuildSystem::Meson { build_type: string(next(), "release"), build_dir: string(next(), "build") },
+            "meson" => BuildSystem::Meson {
+                build_type: string(next(), "release"),
+                build_dir: string(next(), "build"),
+            },
             "make" => BuildSystem::Make {
                 targets: string_list(next(), "targets", callee, call_span)?,
                 // `install = ""` skips the install step.
                 install: Some(string(next(), "install")).filter(|t| !t.is_empty()),
                 prefix_var: string(next(), "PREFIX"),
             },
-            "autotools" => BuildSystem::Autotools { reconf: flag(next()) },
+            "autotools" => BuildSystem::Autotools {
+                reconf: flag(next()),
+            },
             "cargo" => BuildSystem::Cargo {
                 features: string_list(next(), "features", callee, call_span)?,
                 locked: flag(next()),
@@ -332,19 +390,30 @@ impl Evaluator<'_> {
                     None => vec![".".to_string()],
                     packages => string_list(packages, "packages", callee, call_span)?,
                 };
-                BuildSystem::Go { packages, ldflags: next().map(|v| v.to_string()) }
+                BuildSystem::Go {
+                    packages,
+                    ldflags: next().map(|v| v.to_string()),
+                }
             }
             _ => unreachable!(),
         };
 
         let what = format!("`{name}`");
-        self.context.current_version(&what, call_span)?.commands.extend(system.commands(&common));
+        self.context
+            .current_version(&what, call_span)?
+            .commands
+            .extend(system.commands(&common));
         Ok(Value::Null)
     }
 }
 
 /// The strings of a list argument; an absent argument is an empty list.
-fn string_list(value: Option<Value>, param: &str, callee: &Ident, span: Span) -> Result<Vec<String>> {
+fn string_list(
+    value: Option<Value>,
+    param: &str,
+    callee: &Ident,
+    span: Span,
+) -> Result<Vec<String>> {
     let Some(Value::List(items)) = value else {
         return Ok(Vec::new());
     };
@@ -353,7 +422,11 @@ fn string_list(value: Option<Value>, param: &str, callee: &Ident, span: Span) ->
         .map(|item| match item {
             Value::String(s) => Ok(s),
             other => Err(EvalError::new(
-                format!("`{param}` of `{}` must be a list of strings, found a {} in it", callee.name, other.get_type()),
+                format!(
+                    "`{param}` of `{}` must be a list of strings, found a {} in it",
+                    callee.name,
+                    other.get_type()
+                ),
                 span,
             )),
         })
@@ -368,11 +441,19 @@ pub(crate) struct Param {
 
 impl Param {
     pub(crate) fn required(name: &'static str, ty: ValueType) -> Self {
-        Self { name, ty, required: true }
+        Self {
+            name,
+            ty,
+            required: true,
+        }
     }
 
     pub(crate) fn optional(name: &'static str, ty: ValueType) -> Self {
-        Self { name, ty, required: false }
+        Self {
+            name,
+            ty,
+            required: false,
+        }
     }
 }
 
@@ -386,7 +467,9 @@ pub(crate) fn resolve_function_args<const N: usize>(
     expected: &[Param; N],
 ) -> Result<[Option<Value>; N]> {
     let resolved = resolve_args(callee, call_span, args, expected)?;
-    Ok(resolved.try_into().unwrap_or_else(|_| unreachable!("one slot per parameter")))
+    Ok(resolved
+        .try_into()
+        .unwrap_or_else(|_| unreachable!("one slot per parameter")))
 }
 
 /// [`resolve_function_args`] for a parameter list built at run time.
@@ -469,9 +552,12 @@ pub(crate) fn resolve_args(
 
 /// Checks that `path` stays inside the install prefix.
 fn prefix_path(function: &str, path: String, span: Span) -> Result<String> {
-    let escapes = std::path::Path::new(&path)
-        .components()
-        .any(|c| !matches!(c, std::path::Component::Normal(_) | std::path::Component::CurDir));
+    let escapes = std::path::Path::new(&path).components().any(|c| {
+        !matches!(
+            c,
+            std::path::Component::Normal(_) | std::path::Component::CurDir
+        )
+    });
     if path.is_empty() || escapes {
         return Err(EvalError::new(
             format!("`{function}` expects a path inside the install prefix, found `{path}`"),
@@ -496,7 +582,10 @@ fn link_name(name: &str, span: Span) -> std::result::Result<(), EvalError> {
         None
     };
     match problem {
-        Some(problem) => Err(EvalError::new(format!("the link name `{name}` {problem}"), span)),
+        Some(problem) => Err(EvalError::new(
+            format!("the link name `{name}` {problem}"),
+            span,
+        )),
         None => Ok(()),
     }
 }

@@ -103,7 +103,11 @@ impl EvalContext {
         let Some(id) = self.find_scope(name) else {
             return false;
         };
-        self.scopes.get_mut(&id).unwrap().bindings.insert(name.to_string(), value);
+        self.scopes
+            .get_mut(&id)
+            .unwrap()
+            .bindings
+            .insert(name.to_string(), value);
         true
     }
 
@@ -124,7 +128,10 @@ impl EvalContext {
     /// The version that `what` declares into; an error before any `version(...)`.
     pub(crate) fn current_version(&mut self, what: &str, span: Span) -> Result<&mut VersionDef> {
         self.current.as_mut().ok_or_else(|| {
-            EvalError::new(format!("{what} must come after a `version(...)` call"), span)
+            EvalError::new(
+                format!("{what} must come after a `version(...)` call"),
+                span,
+            )
         })
     }
 }
@@ -132,7 +139,13 @@ impl EvalContext {
 /// The `nux` object exposing facts about the host.
 pub(crate) fn host_object() -> Value {
     Value::Object(HashMap::from([
-        ("arch".to_string(), Value::String(std::env::consts::ARCH.to_string())),
-        ("os".to_string(), Value::String(std::env::consts::OS.to_string())),
+        (
+            "arch".to_string(),
+            Value::String(std::env::consts::ARCH.to_string()),
+        ),
+        (
+            "os".to_string(),
+            Value::String(std::env::consts::OS.to_string()),
+        ),
     ]))
 }

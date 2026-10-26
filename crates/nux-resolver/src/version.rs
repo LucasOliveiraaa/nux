@@ -172,7 +172,9 @@ impl Comparator {
         };
         let upper = match upper {
             Some(None) => {
-                return Err(format!("`{text}` needs a numeric component to bound the range"));
+                return Err(format!(
+                    "`{text}` needs a numeric component to bound the range"
+                ));
             }
             Some(bound) => bound,
             None => None,

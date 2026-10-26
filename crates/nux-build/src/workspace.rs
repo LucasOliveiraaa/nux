@@ -89,7 +89,8 @@ impl Workspace {
     /// Creates the top-level directories; existing ones are kept.
     pub fn create(&self) -> Result<(), BuildError> {
         for dir in [self.bin_dir(), self.packages_dir(), self.state_dir()] {
-            std::fs::create_dir_all(&dir).map_err(|e| BuildError::io(format!("cannot create `{}`", dir.display()), e))?;
+            std::fs::create_dir_all(&dir)
+                .map_err(|e| BuildError::io(format!("cannot create `{}`", dir.display()), e))?;
         }
         Ok(())
     }
@@ -104,7 +105,10 @@ impl Workspace {
             .map(|e| e.file_name().to_string_lossy().into_owned())
             .filter(|version| {
                 let paths = self.package(name, version);
-                paths.install.is_dir() && crate::state::Metadata::read(&paths.metadata).installed.is_some()
+                paths.install.is_dir()
+                    && crate::state::Metadata::read(&paths.metadata)
+                        .installed
+                        .is_some()
             })
             .collect();
         versions.sort_by_cached_key(|v| nux_resolver::Version::parse(v).ok());
@@ -119,7 +123,11 @@ impl Workspace {
     /// When another process holds it, this fails with [`BuildError::Busy`],
     /// or, with `wait`, calls `on_wait` with the holder's process id (if
     /// known) and blocks until it is free.
-    pub fn lock(&self, wait: bool, on_wait: impl FnOnce(Option<u32>)) -> Result<WorkspaceLock, BuildError> {
+    pub fn lock(
+        &self,
+        wait: bool,
+        on_wait: impl FnOnce(Option<u32>),
+    ) -> Result<WorkspaceLock, BuildError> {
         let path = self.home.join(".lock");
         let io = |e| BuildError::io(format!("cannot lock `{}`", path.display()), e);
         std::fs::create_dir_all(&self.home).map_err(io)?;
@@ -133,9 +141,14 @@ impl Workspace {
         match file.try_lock() {
             Ok(()) => {}
             Err(std::fs::TryLockError::WouldBlock) => {
-                let pid = std::fs::read_to_string(&path).ok().and_then(|s| s.trim().parse().ok());
+                let pid = std::fs::read_to_string(&path)
+                    .ok()
+                    .and_then(|s| s.trim().parse().ok());
                 if !wait {
-                    return Err(BuildError::Busy { home: self.home.clone(), pid });
+                    return Err(BuildError::Busy {
+                        home: self.home.clone(),
+                        pid,
+                    });
                 }
                 on_wait(pid);
                 file.lock().map_err(io)?;
@@ -156,7 +169,10 @@ impl Workspace {
         let metadata = crate::state::Metadata::read(&self.package(name, version).metadata);
         let downloaded = metadata.source.map(|s| s.identity);
         let installed = metadata.installed.map(|i| i.identity);
-        downloaded.into_iter().chain(installed).find(|identity| !identity.is_empty())
+        downloaded
+            .into_iter()
+            .chain(installed)
+            .find(|identity| !identity.is_empty())
     }
 
     pub fn package(&self, name: &str, version: &str) -> PackagePaths {

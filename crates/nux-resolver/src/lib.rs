@@ -110,15 +110,31 @@ pub enum ResolveError {
     /// The same version of a package was registered twice.
     DuplicateVersion { name: String, version: String },
     /// A declared version string cannot be parsed.
-    InvalidVersion { name: String, version: String, reason: String },
+    InvalidVersion {
+        name: String,
+        version: String,
+        reason: String,
+    },
     /// A requirement string cannot be parsed.
-    InvalidRequirement { name: String, requirement: String, reason: String },
+    InvalidRequirement {
+        name: String,
+        requirement: String,
+        reason: String,
+    },
     /// No package with this name is defined.
     UnknownPackage { name: String },
     /// The package exists, but none of its versions satisfy the requirement.
-    NoMatchingVersion { name: String, requirement: String, available: Vec<String> },
+    NoMatchingVersion {
+        name: String,
+        requirement: String,
+        available: Vec<String>,
+    },
     /// `error` happened while resolving a dependency of `name` `version`.
-    InDependency { name: String, version: String, error: Box<ResolveError> },
+    InDependency {
+        name: String,
+        version: String,
+        error: Box<ResolveError>,
+    },
     /// Each entry depends on the next; the last one is the first again.
     Cycle(Vec<(String, String)>),
 }
@@ -127,21 +143,43 @@ impl std::fmt::Display for ResolveError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ResolveError::DuplicateVersion { name, version } => {
-                write!(f, "version `{version}` of `{name}` is defined more than once")
+                write!(
+                    f,
+                    "version `{version}` of `{name}` is defined more than once"
+                )
             }
-            ResolveError::InvalidVersion { name, version, reason } => {
+            ResolveError::InvalidVersion {
+                name,
+                version,
+                reason,
+            } => {
                 write!(f, "invalid version `{version}` of `{name}`: {reason}")
             }
-            ResolveError::InvalidRequirement { name, requirement, reason } => {
-                write!(f, "invalid version requirement `{requirement}` for `{name}`: {reason}")
+            ResolveError::InvalidRequirement {
+                name,
+                requirement,
+                reason,
+            } => {
+                write!(
+                    f,
+                    "invalid version requirement `{requirement}` for `{name}`: {reason}"
+                )
             }
             ResolveError::UnknownPackage { name } => write!(f, "package `{name}` is not defined"),
-            ResolveError::NoMatchingVersion { name, requirement, available } => write!(
+            ResolveError::NoMatchingVersion {
+                name,
+                requirement,
+                available,
+            } => write!(
                 f,
                 "no version of `{name}` satisfies `{requirement}` (available: {})",
                 available.join(", ")
             ),
-            ResolveError::InDependency { name, version, error } => {
+            ResolveError::InDependency {
+                name,
+                version,
+                error,
+            } => {
                 write!(f, "in dependencies of `{name}` {version}: {error}")
             }
             ResolveError::Cycle(path) => {
@@ -181,7 +219,10 @@ impl Resolver {
     }
 
     /// Registers every version of an evaluated program.
-    pub fn add_package(&mut self, result: EvalResult) -> Result<Vec<PackageVersionId>, ResolveError> {
+    pub fn add_package(
+        &mut self,
+        result: EvalResult,
+    ) -> Result<Vec<PackageVersionId>, ResolveError> {
         result
             .versions
             .into_iter()
@@ -189,12 +230,17 @@ impl Resolver {
             .collect()
     }
 
-    pub fn add_version(&mut self, name: String, def: VersionDef) -> Result<PackageVersionId, ResolveError> {
-        let parsed = Version::parse(&def.version).map_err(|reason| ResolveError::InvalidVersion {
-            name: name.clone(),
-            version: def.version.clone(),
-            reason,
-        })?;
+    pub fn add_version(
+        &mut self,
+        name: String,
+        def: VersionDef,
+    ) -> Result<PackageVersionId, ResolveError> {
+        let parsed =
+            Version::parse(&def.version).map_err(|reason| ResolveError::InvalidVersion {
+                name: name.clone(),
+                version: def.version.clone(),
+                reason,
+            })?;
 
         let package_index = match self.by_name.get(&name) {
             Some(&index) => index,
@@ -255,7 +301,10 @@ impl Resolver {
     /// locked resolution stays the same when newer versions appear. Unknown
     /// versions are ignored. Returns whether the version exists.
     pub fn prefer(&mut self, name: &str, version: &str) -> bool {
-        let id = self.package(name).and_then(|p| p.versions.iter().find(|v| v.version == version)).map(|v| v.id);
+        let id = self
+            .package(name)
+            .and_then(|p| p.versions.iter().find(|v| v.version == version))
+            .map(|v| v.id);
         if let Some(id) = id {
             self.preferred.insert(id);
         }
@@ -266,14 +315,17 @@ impl Resolver {
     /// versions that satisfy it, a [preferred](Self::prefer) one wins, then
     /// one the host provides (it needs no build), then the highest.
     pub fn select(&self, name: &str, requirement: &str) -> Result<PackageVersionId, ResolveError> {
-        let req = VersionReq::parse(requirement).map_err(|reason| ResolveError::InvalidRequirement {
-            name: name.to_string(),
-            requirement: requirement.to_string(),
-            reason,
-        })?;
-        let package = self.package(name).ok_or_else(|| ResolveError::UnknownPackage {
-            name: name.to_string(),
-        })?;
+        let req =
+            VersionReq::parse(requirement).map_err(|reason| ResolveError::InvalidRequirement {
+                name: name.to_string(),
+                requirement: requirement.to_string(),
+                reason,
+            })?;
+        let package = self
+            .package(name)
+            .ok_or_else(|| ResolveError::UnknownPackage {
+                name: name.to_string(),
+            })?;
         package
             .versions
             .iter()
@@ -311,7 +363,10 @@ impl Resolver {
             ));
         }
         let order = order::build_order(&graph, &required);
-        Ok(order.into_iter().map(|id| self.resolved(&graph, id)).collect())
+        Ok(order
+            .into_iter()
+            .map(|id| self.resolved(&graph, id))
+            .collect())
     }
 
     fn resolved(&self, graph: &VersionGraph, id: PackageVersionId) -> ResolvedPackage {
@@ -320,7 +375,10 @@ impl Resolver {
             .edges(id)
             .iter()
             .map(|edge| {
-                let target = *edge.target.as_ref().expect("pruning rejects unresolved edges");
+                let target = *edge
+                    .target
+                    .as_ref()
+                    .expect("pruning rejects unresolved edges");
                 let (name, version) = graph.name_version(target);
                 ResolvedDependency {
                     id: target,

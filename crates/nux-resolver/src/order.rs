@@ -14,7 +14,10 @@ enum Mark {
 /// Finds a dependency cycle among `nodes`, returned as the path that closes
 /// it: `[a, b, a]` means `a` depends on `b`, which depends on `a`. A version
 /// depending on itself is `[a, a]`. Edges leaving `nodes` are ignored.
-pub fn find_cycle(graph: &VersionGraph, nodes: &BTreeSet<PackageVersionId>) -> Option<Vec<PackageVersionId>> {
+pub fn find_cycle(
+    graph: &VersionGraph,
+    nodes: &BTreeSet<PackageVersionId>,
+) -> Option<Vec<PackageVersionId>> {
     fn visit(
         graph: &VersionGraph,
         nodes: &BTreeSet<PackageVersionId>,
@@ -60,7 +63,10 @@ pub fn find_cycle(graph: &VersionGraph, nodes: &BTreeSet<PackageVersionId>) -> O
 /// Among versions that are ready at the same time, the lowest name and then
 /// version goes first, so the result does not depend on registration or
 /// request order. `nodes` must be acyclic (see [`find_cycle`]).
-pub fn build_order(graph: &VersionGraph, nodes: &BTreeSet<PackageVersionId>) -> Vec<PackageVersionId> {
+pub fn build_order(
+    graph: &VersionGraph,
+    nodes: &BTreeSet<PackageVersionId>,
+) -> Vec<PackageVersionId> {
     let mut pending: HashMap<PackageVersionId, usize> = HashMap::new();
     let mut dependents: HashMap<PackageVersionId, Vec<PackageVersionId>> = HashMap::new();
     for &id in nodes {
@@ -75,7 +81,11 @@ pub fn build_order(graph: &VersionGraph, nodes: &BTreeSet<PackageVersionId>) -> 
         let (name, version) = graph.key(id);
         (name, version, id)
     };
-    let mut ready: BTreeSet<_> = nodes.iter().filter(|id| pending[id] == 0).map(|&id| key(id)).collect();
+    let mut ready: BTreeSet<_> = nodes
+        .iter()
+        .filter(|id| pending[id] == 0)
+        .map(|&id| key(id))
+        .collect();
 
     let mut order = Vec::with_capacity(nodes.len());
     while let Some((_, _, id)) = ready.pop_first() {
@@ -88,6 +98,10 @@ pub fn build_order(graph: &VersionGraph, nodes: &BTreeSet<PackageVersionId>) -> 
             }
         }
     }
-    debug_assert_eq!(order.len(), nodes.len(), "build_order called on a cyclic graph");
+    debug_assert_eq!(
+        order.len(),
+        nodes.len(),
+        "build_order called on a cyclic graph"
+    );
     order
 }

@@ -139,7 +139,12 @@ impl<'e> Evaluator<'e> {
 
     /// Substitutes `${name}` with bound values. With `strict`, an unbound name
     /// is an error reported at `span`; otherwise it is kept verbatim.
-    pub(crate) fn interpolate_string(&self, input: &str, span: Span, strict: bool) -> Result<String> {
+    pub(crate) fn interpolate_string(
+        &self,
+        input: &str,
+        span: Span,
+        strict: bool,
+    ) -> Result<String> {
         let mut missing = None;
 
         let result = INTERPOLATION.replace_all(input, |caps: &regex::Captures| {
@@ -178,7 +183,10 @@ impl<'e> Evaluator<'e> {
                 .ok_or_else(|| EvalError::new(format!("undefined variable `{name}`"), span)),
             ast::ExprKind::Group(inner) => self.eval_expr(inner),
             ast::ExprKind::List(items) => Ok(Value::List(
-                items.iter().map(|item| self.eval_expr(item)).collect::<Result<_>>()?,
+                items
+                    .iter()
+                    .map(|item| self.eval_expr(item))
+                    .collect::<Result<_>>()?,
             )),
             ast::ExprKind::MemberAccess { object, member } => {
                 let object_value = self.eval_expr(object)?;
@@ -190,7 +198,11 @@ impl<'e> Evaluator<'e> {
                         )
                     }),
                     other => Err(EvalError::new(
-                        format!("cannot access member `{}` of a {}", member.name, other.get_type()),
+                        format!(
+                            "cannot access member `{}` of a {}",
+                            member.name,
+                            other.get_type()
+                        ),
                         span,
                     )),
                 }
@@ -243,7 +255,10 @@ impl<'e> Evaluator<'e> {
             let symbol = if *op == Op::AndAnd { "&&" } else { "||" };
             let Value::Boolean(l) = left else {
                 return Err(EvalError::new(
-                    format!("binary `{symbol}` expects booleans, found {}", left.get_type()),
+                    format!(
+                        "binary `{symbol}` expects booleans, found {}",
+                        left.get_type()
+                    ),
                     span,
                 ));
             };
@@ -253,7 +268,10 @@ impl<'e> Evaluator<'e> {
             return match self.eval_expr(right)? {
                 Value::Boolean(r) => Ok(Value::Boolean(r)),
                 other => Err(EvalError::new(
-                    format!("binary `{symbol}` expects booleans, found {}", other.get_type()),
+                    format!(
+                        "binary `{symbol}` expects booleans, found {}",
+                        other.get_type()
+                    ),
                     span,
                 )),
             };
@@ -277,11 +295,21 @@ impl<'e> Evaluator<'e> {
         };
 
         match op {
-            Op::Add => numbers.map(|(l, r)| Value::Number(l + r)).ok_or_else(|| mismatch("+")),
-            Op::Subtract => numbers.map(|(l, r)| Value::Number(l - r)).ok_or_else(|| mismatch("-")),
-            Op::Multiply => numbers.map(|(l, r)| Value::Number(l * r)).ok_or_else(|| mismatch("*")),
+            Op::Add => numbers
+                .map(|(l, r)| Value::Number(l + r))
+                .ok_or_else(|| mismatch("+")),
+            Op::Subtract => numbers
+                .map(|(l, r)| Value::Number(l - r))
+                .ok_or_else(|| mismatch("-")),
+            Op::Multiply => numbers
+                .map(|(l, r)| Value::Number(l * r))
+                .ok_or_else(|| mismatch("*")),
             Op::Divide | Op::Modulo => {
-                let (symbol, what) = if *op == Op::Divide { ("/", "division") } else { ("%", "modulo") };
+                let (symbol, what) = if *op == Op::Divide {
+                    ("/", "division")
+                } else {
+                    ("%", "modulo")
+                };
                 let (l, r) = numbers.ok_or_else(|| mismatch(symbol))?;
                 if r == 0.0 {
                     Err(EvalError::new(format!("{what} by zero"), span))
@@ -301,8 +329,12 @@ impl<'e> Evaluator<'e> {
             },
             Op::Equal => Ok(Value::Boolean(left == right)),
             Op::NotEqual => Ok(Value::Boolean(left != right)),
-            Op::GreaterThan => numbers.map(|(l, r)| Value::Boolean(l > r)).ok_or_else(|| mismatch(">")),
-            Op::LessThan => numbers.map(|(l, r)| Value::Boolean(l < r)).ok_or_else(|| mismatch("<")),
+            Op::GreaterThan => numbers
+                .map(|(l, r)| Value::Boolean(l > r))
+                .ok_or_else(|| mismatch(">")),
+            Op::LessThan => numbers
+                .map(|(l, r)| Value::Boolean(l < r))
+                .ok_or_else(|| mismatch("<")),
             Op::GreaterThanOrEqual => numbers
                 .map(|(l, r)| Value::Boolean(l >= r))
                 .ok_or_else(|| mismatch(">=")),
@@ -313,14 +345,20 @@ impl<'e> Evaluator<'e> {
         }
     }
 
-    pub(crate) fn eval_function_arg(&mut self, arg: &FunctionArg, bare_names: bool) -> Result<ParsedFuncArg> {
+    pub(crate) fn eval_function_arg(
+        &mut self,
+        arg: &FunctionArg,
+        bare_names: bool,
+    ) -> Result<ParsedFuncArg> {
         let (name, expr) = match &arg.kind {
             ast::FunctionArgKind::Value(expr) => (None, expr),
             ast::FunctionArgKind::Bind { name, value } => (Some(name.clone()), value),
         };
 
         let value = match &expr.kind {
-            ast::ExprKind::Variable(var) if bare_names && self.context.get_binding(var).is_none() => {
+            ast::ExprKind::Variable(var)
+                if bare_names && self.context.get_binding(var).is_none() =>
+            {
                 Value::String(var.clone())
             }
             _ => self.eval_expr(expr)?,

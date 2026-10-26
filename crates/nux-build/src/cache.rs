@@ -27,18 +27,33 @@ impl Workspace {
 
     /// The bare mirror of the git repository at `url`.
     pub(crate) fn git_mirror(&self, url: &str) -> PathBuf {
-        let name = url.trim_end_matches('/').rsplit(['/', ':']).next().unwrap_or("repository");
+        let name = url
+            .trim_end_matches('/')
+            .rsplit(['/', ':'])
+            .next()
+            .unwrap_or("repository");
         let name: String = name
             .trim_end_matches(".git")
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() || "-_.".contains(c) { c } else { '_' })
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || "-_.".contains(c) {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
-        self.cache_dir().join("git").join(format!("{name}-{}.git", &hash(url)[..16]))
+        self.cache_dir()
+            .join("git")
+            .join(format!("{name}-{}.git", &hash(url)[..16]))
     }
 
     /// Where a downloaded file with this SHA-256 is kept.
     pub(crate) fn cached_download(&self, sha256: &str) -> PathBuf {
-        self.cache_dir().join("downloads").join("sha256").join(sha256)
+        self.cache_dir()
+            .join("downloads")
+            .join("sha256")
+            .join(sha256)
     }
 }
 
@@ -53,7 +68,12 @@ impl CacheLock {
         if let Some(parent) = lock.parent() {
             std::fs::create_dir_all(parent).map_err(context)?;
         }
-        let file = File::options().create(true).truncate(false).write(true).open(&lock).map_err(context)?;
+        let file = File::options()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(&lock)
+            .map_err(context)?;
         file.lock().map_err(context)?;
         Ok(Self(file))
     }
@@ -79,17 +99,36 @@ pub(crate) fn init_mirror(dir: &Path) -> Result<(), String> {
 
 /// Whether the mirror has `commit`.
 pub(crate) fn has_commit(mirror: &Path, commit: &str) -> bool {
-    git(Some(mirror), &["cat-file", "-e", &format!("{commit}^{{commit}}")], None).is_ok()
+    git(
+        Some(mirror),
+        &["cat-file", "-e", &format!("{commit}^{{commit}}")],
+        None,
+    )
+    .is_ok()
 }
 
 /// The commit `reference` points at in the mirror.
 pub(crate) fn resolve(mirror: &Path, reference: &str) -> Result<String, String> {
-    git(Some(mirror), &["rev-parse", "--verify", "--quiet", &format!("{reference}^{{commit}}")], None)
+    git(
+        Some(mirror),
+        &[
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("{reference}^{{commit}}"),
+        ],
+        None,
+    )
 }
 
 /// Keeps `commit` in the mirror for good, under `refs/nux/<commit>`.
 pub(crate) fn keep(mirror: &Path, commit: &str) -> Result<(), String> {
-    git(Some(mirror), &["update-ref", &format!("refs/nux/{commit}"), commit], None).map(|_| ())
+    git(
+        Some(mirror),
+        &["update-ref", &format!("refs/nux/{commit}"), commit],
+        None,
+    )
+    .map(|_| ())
 }
 
 /// Creates the repository `target` with `commit` checked out, copying only
@@ -97,11 +136,29 @@ pub(crate) fn keep(mirror: &Path, commit: &str) -> Result<(), String> {
 pub(crate) fn check_out(mirror: &Path, commit: &str, target: &Path) -> Result<(), String> {
     git(None, &["init", "--quiet"], Some(target))?;
     let mirror = mirror.to_string_lossy();
-    git(Some(target), &["fetch", "--quiet", "--no-tags", "--depth", "1", &mirror, &format!("refs/nux/{commit}")], None)?;
-    git(Some(target), &["checkout", "--quiet", "--detach", commit], None)?;
+    git(
+        Some(target),
+        &[
+            "fetch",
+            "--quiet",
+            "--no-tags",
+            "--depth",
+            "1",
+            &mirror,
+            &format!("refs/nux/{commit}"),
+        ],
+        None,
+    )?;
+    git(
+        Some(target),
+        &["checkout", "--quiet", "--detach", commit],
+        None,
+    )?;
     let head = git(Some(target), &["rev-parse", "HEAD"], None)?;
     if head != commit {
-        return Err(format!("the mirror `{mirror}` gave {head} instead of {commit}"));
+        return Err(format!(
+            "the mirror `{mirror}` gave {head} instead of {commit}"
+        ));
     }
     Ok(())
 }
@@ -122,7 +179,11 @@ fn git(dir: Option<&Path>, args: &[&str], path: Option<&Path>) -> Result<String,
         .output()
         .map_err(|e| format!("cannot run `git`: {e}"))?;
     if !output.status.success() {
-        return Err(format!("`git {}` failed: {}", args.join(" "), String::from_utf8_lossy(&output.stderr).trim()));
+        return Err(format!(
+            "`git {}` failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
     }
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
@@ -137,7 +198,9 @@ pub(crate) fn store_download(workspace: &Workspace, file: &Path, sha256: &str) {
     let Some(dir) = target.parent() else { return };
     let tmp = target.with_extension(format!("tmp-{}", std::process::id()));
     let stored = std::fs::create_dir_all(dir)
-        .and_then(|()| std::fs::hard_link(file, &tmp).or_else(|_| std::fs::copy(file, &tmp).map(|_| ())))
+        .and_then(|()| {
+            std::fs::hard_link(file, &tmp).or_else(|_| std::fs::copy(file, &tmp).map(|_| ()))
+        })
         .and_then(|()| std::fs::rename(&tmp, &target));
     if stored.is_err() {
         let _ = std::fs::remove_file(&tmp);
@@ -156,20 +219,27 @@ pub(crate) fn take_download(workspace: &Workspace, sha256: &str, to: &Path) -> b
         }
         Err(_) => return false,
     }
-    std::fs::hard_link(&cached, to).or_else(|_| std::fs::copy(&cached, to).map(|_| ())).is_ok()
+    std::fs::hard_link(&cached, to)
+        .or_else(|_| std::fs::copy(&cached, to).map(|_| ()))
+        .is_ok()
 }
 
 /// SHA-256 of `text`, hex encoded.
 fn hash(text: &str) -> String {
     use sha2::{Digest, Sha256};
-    Sha256::digest(text.as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(text.as_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 /// Makes everything under `path` writable by its owner, so it can be
 /// removed: Go makes its module cache read-only.
 pub(crate) fn make_writable(path: &Path) {
     use std::os::unix::fs::PermissionsExt;
-    let Ok(metadata) = path.symlink_metadata() else { return };
+    let Ok(metadata) = path.symlink_metadata() else {
+        return;
+    };
     if metadata.file_type().is_symlink() {
         return;
     }
@@ -194,11 +264,29 @@ mod tests {
         let workspace = Workspace::new("/nux");
         let mirror = workspace.git_mirror("https://github.com/madler/zlib.git");
         let name = mirror.file_name().unwrap().to_string_lossy().into_owned();
-        assert!(name.starts_with("zlib-") && name.ends_with(".git") && name.len() == "zlib-".len() + 16 + 4, "{name}");
+        assert!(
+            name.starts_with("zlib-")
+                && name.ends_with(".git")
+                && name.len() == "zlib-".len() + 16 + 4,
+            "{name}"
+        );
         assert_eq!(mirror.parent().unwrap(), Path::new("/nux/cache/git"));
-        assert_ne!(mirror, workspace.git_mirror("https://example.com/other/zlib.git"));
-        assert_eq!(mirror, workspace.git_mirror("https://github.com/madler/zlib.git"));
+        assert_ne!(
+            mirror,
+            workspace.git_mirror("https://example.com/other/zlib.git")
+        );
+        assert_eq!(
+            mirror,
+            workspace.git_mirror("https://github.com/madler/zlib.git")
+        );
         let odd = workspace.git_mirror("git@host:team/we ird/");
-        assert!(odd.file_name().unwrap().to_string_lossy().starts_with("we_ird-"), "{}", odd.display());
+        assert!(
+            odd.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("we_ird-"),
+            "{}",
+            odd.display()
+        );
     }
 }

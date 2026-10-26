@@ -35,7 +35,11 @@ fn run_err(body: &str) -> (String, String) {
 /// The commands produced by `bash { ... }` blocks, as a quick way to observe values.
 fn commands(body: &str) -> Vec<String> {
     match run(body) {
-        Ok(result) => result.versions.into_iter().flat_map(|v| v.commands).collect(),
+        Ok(result) => result
+            .versions
+            .into_iter()
+            .flat_map(|v| v.commands)
+            .collect(),
         Err((arena, e)) => panic!("{}", e.render(&arena)),
     }
 }
@@ -81,10 +85,18 @@ fn builtins_populate_result() {
     );
     let result = eval_program(&program, &mut Executor::new()).ok().unwrap();
     assert_eq!(result.name, "cmake");
-    let [result] = &result.versions[..] else { panic!("expected one version") };
+    let [result] = &result.versions[..] else {
+        panic!("expected one version")
+    };
     assert_eq!(result.version, "4.2.0");
-    assert!(result.dependencies.contains(&Dependency::Build { name: "gcc".into(), version: "latest".into() }));
-    assert!(result.dependencies.contains(&Dependency::Build { name: "git".into(), version: "latest".into() }));
+    assert!(result.dependencies.contains(&Dependency::Build {
+        name: "gcc".into(),
+        version: "latest".into()
+    }));
+    assert!(result.dependencies.contains(&Dependency::Build {
+        name: "git".into(),
+        version: "latest".into()
+    }));
     let source = result.source.clone().unwrap();
     assert!(matches!(source.kind, SourceKind::Git(ref g) if g == "https://example.com/4.2.0.git"));
     assert_eq!(source.proxy.as_deref(), Some("socks5://p"));
@@ -223,7 +235,10 @@ fn argument_resolution_errors() {
     );
     assert_eq!(
         run_err("version(\"1\");"),
-        ("version `1` is already declared".into(), "version(\"1\")".into())
+        (
+            "version `1` is already declared".into(),
+            "version(\"1\")".into()
+        )
     );
     assert_eq!(
         run_err("add_dependency();"),
@@ -248,7 +263,10 @@ fn argument_resolution_errors() {
     );
     assert_eq!(
         run_err("source(git = \"a\", branch = \"v1\");"),
-        ("`source` has no parameter named `branch`".into(), "branch".into())
+        (
+            "`source` has no parameter named `branch`".into(),
+            "branch".into()
+        )
     );
     assert_eq!(
         run_err("source(git = \"a\", git = \"b\");"),
@@ -303,20 +321,34 @@ fn each_version_has_its_own_declarations() {
 
     let old = result.version("3.0.0").unwrap();
     assert_eq!(old.commands, ["make v3"]);
-    assert!(matches!(old.source.as_ref().unwrap().kind, SourceKind::Git(_)));
+    assert!(matches!(
+        old.source.as_ref().unwrap().kind,
+        SourceKind::Git(_)
+    ));
     assert_eq!(
         old.dependencies,
-        HashSet::from([Dependency::Build { name: "gcc".into(), version: "^9".into() }])
+        HashSet::from([Dependency::Build {
+            name: "gcc".into(),
+            version: "^9".into()
+        }])
     );
 
     let new = result.version("4.2.0").unwrap();
     assert_eq!(new.commands, ["make v4.2.0"]);
-    assert!(matches!(new.source.as_ref().unwrap().kind, SourceKind::Url(ref u) if u.ends_with("4.2.0.tar.gz")));
+    assert!(
+        matches!(new.source.as_ref().unwrap().kind, SourceKind::Url(ref u) if u.ends_with("4.2.0.tar.gz"))
+    );
     assert_eq!(
         new.dependencies,
         HashSet::from([
-            Dependency::Build { name: "gcc".into(), version: ">=12".into() },
-            Dependency::Runtime { name: "git".into(), version: "latest".into() },
+            Dependency::Build {
+                name: "gcc".into(),
+                version: ">=12".into()
+            },
+            Dependency::Runtime {
+                name: "git".into(),
+                version: "latest".into()
+            },
         ])
     );
 }
@@ -345,13 +377,18 @@ fn version_can_be_declared_conditionally() {
         .collect();
     assert_eq!(
         summary,
-        [("1.0", vec!["build 1".to_string()]), ("2.0", vec!["build 2".into()]), ("3.0", vec!["build 3".into()])]
+        [
+            ("1.0", vec!["build 1".to_string()]),
+            ("2.0", vec!["build 2".into()]),
+            ("3.0", vec!["build 3".into()])
+        ]
     );
 }
 
 #[test]
 fn source_may_be_set_once_per_version() {
-    let result = eval(r#"program p { version("1"); source(git = "a"); version("2"); source(git = "b"); }"#);
+    let result =
+        eval(r#"program p { version("1"); source(git = "a"); version("2"); source(git = "b"); }"#);
     let sources: Vec<_> = result
         .versions
         .iter()
@@ -364,16 +401,31 @@ fn source_may_be_set_once_per_version() {
 
     assert_eq!(
         run_err(r#"source(git = "a"); source(git = "b");"#),
-        ("source is already set".into(), r#"source(git = "b")"#.into())
+        (
+            "source is already set".into(),
+            r#"source(git = "b")"#.into()
+        )
     );
 }
 
 #[test]
 fn declarations_before_version_are_errors() {
     for (body, message, text) in [
-        ("add_dependency(gcc);", "`add_dependency` must come after a `version(...)` call", "add_dependency(gcc)"),
-        (r#"source(git = "a");"#, "`source` must come after a `version(...)` call", r#"source(git = "a")"#),
-        ("bash { make }", "`bash` block must come after a `version(...)` call", "bash { make }"),
+        (
+            "add_dependency(gcc);",
+            "`add_dependency` must come after a `version(...)` call",
+            "add_dependency(gcc)",
+        ),
+        (
+            r#"source(git = "a");"#,
+            "`source` must come after a `version(...)` call",
+            r#"source(git = "a")"#,
+        ),
+        (
+            "bash { make }",
+            "`bash` block must come after a `version(...)` call",
+            "bash { make }",
+        ),
     ] {
         let src = format!("program p {{ {body} version(\"1\"); }}");
         let (arena, program) = parse(&src);
@@ -387,7 +439,10 @@ fn declarations_before_version_are_errors() {
 fn duplicate_version_is_an_error() {
     assert_eq!(
         run_err(r#"version("2"); version("1");"#),
-        ("version `1` is already declared".into(), r#"version("1")"#.into())
+        (
+            "version `1` is already declared".into(),
+            r#"version("1")"#.into()
+        )
     );
 }
 
@@ -403,14 +458,20 @@ fn git_tag_and_set_bin() {
         }"#,
     );
     let first = &result.versions[0];
-    assert_eq!(first.source.as_ref().unwrap().tag.as_deref(), Some("v4.2.0"));
+    assert_eq!(
+        first.source.as_ref().unwrap().tag.as_deref(),
+        Some("v4.2.0")
+    );
     assert_eq!(first.bin.as_deref(), Some("bin/cmake"));
     // `set_bin` belongs to the version it was declared in.
     assert_eq!(result.versions[1].bin, None);
 
     assert_eq!(
         run_err(r#"source(url = "a", tag = "v1");"#),
-        ("`tag` can only be used with `git`".into(), r#"source(url = "a", tag = "v1")"#.into())
+        (
+            "`tag` can only be used with `git`".into(),
+            r#"source(url = "a", tag = "v1")"#.into()
+        )
     );
     assert_eq!(
         run_err(r#"set_bin("a"); set_bin("b");"#),
@@ -418,7 +479,10 @@ fn git_tag_and_set_bin() {
     );
     for path in ["", "../escape", "/abs/path"] {
         let (message, _) = run_err(&format!("set_bin(\"{path}\");"));
-        assert!(message.starts_with("`set_bin` expects a path inside the install prefix"), "{path}");
+        assert!(
+            message.starts_with("`set_bin` expects a path inside the install prefix"),
+            "{path}"
+        );
     }
 }
 
@@ -434,13 +498,24 @@ fn export_lib_registers_libraries() {
     assert_eq!(
         result.versions[0].libraries,
         [
-            Library { name: "z".into(), lib: "lib".into(), include: Some("include".into()) },
-            Library { name: "zstatic".into(), lib: "lib64".into(), include: None },
+            Library {
+                name: "z".into(),
+                lib: "lib".into(),
+                include: Some("include".into())
+            },
+            Library {
+                name: "zstatic".into(),
+                lib: "lib64".into(),
+                include: None
+            },
         ]
     );
     assert_eq!(
         run_err(r#"export_lib("z"); export_lib("z");"#),
-        ("library `z` is already exported".into(), r#"export_lib("z")"#.into())
+        (
+            "library `z` is already exported".into(),
+            r#"export_lib("z")"#.into()
+        )
     );
     assert_eq!(
         run_err(r#"export_lib("lib/z");"#).0,
@@ -455,10 +530,16 @@ fn export_lib_registers_libraries() {
 /// A host whose `gcc` reports `version`.
 fn host_with_gcc(name: &str, version: &str) -> Host {
     use std::os::unix::fs::PermissionsExt;
-    let dir = std::env::temp_dir().join(format!("nux-eval-host-{}", std::process::id())).join(name);
+    let dir = std::env::temp_dir()
+        .join(format!("nux-eval-host-{}", std::process::id()))
+        .join(name);
     std::fs::create_dir_all(&dir).unwrap();
     let gcc = dir.join("gcc");
-    std::fs::write(&gcc, format!("#!/bin/sh\necho 'gcc (Debian {version}-1) {version}'\n")).unwrap();
+    std::fs::write(
+        &gcc,
+        format!("#!/bin/sh\necho 'gcc (Debian {version}-1) {version}'\n"),
+    )
+    .unwrap();
     std::fs::set_permissions(&gcc, std::fs::Permissions::from_mode(0o755)).unwrap();
     Host::new(vec![dir], vec![])
 }
@@ -477,34 +558,54 @@ const GCC: &str = r#"program gcc {
 
 fn eval_on(host: &Host, src: &str) -> EvalResult {
     let (arena, program) = parse(src);
-    eval_program_with_host(&program, &mut Executor::new(), host).unwrap_or_else(|e| panic!("{}", e.render(&arena)))
+    eval_program_with_host(&program, &mut Executor::new(), host)
+        .unwrap_or_else(|e| panic!("{}", e.render(&arena)))
 }
 
 #[test]
 fn recipes_see_host_executables() {
     let summary = |result: EvalResult| -> Vec<(String, bool)> {
-        result.versions.into_iter().map(|v| (v.version, v.host.is_some())).collect()
+        result
+            .versions
+            .into_iter()
+            .map(|v| (v.version, v.host.is_some()))
+            .collect()
     };
 
     // An older host compiler is offered next to the buildable version.
     let host = host_with_gcc("older", "12.2.0");
     let result = eval_on(&host, GCC);
-    assert_eq!(result.versions[0].host.as_ref().unwrap().path, host.find("gcc").unwrap());
-    assert_eq!(summary(result), [("12.2.0".into(), true), ("14.2.0".into(), false)]);
+    assert_eq!(
+        result.versions[0].host.as_ref().unwrap().path,
+        host.find("gcc").unwrap()
+    );
+    assert_eq!(
+        summary(result),
+        [("12.2.0".into(), true), ("14.2.0".into(), false)]
+    );
 
     // The same version on the host: nothing to build.
-    assert_eq!(summary(eval_on(&host_with_gcc("same", "14.2.0"), GCC)), [("14.2.0".into(), true)]);
+    assert_eq!(
+        summary(eval_on(&host_with_gcc("same", "14.2.0"), GCC)),
+        [("14.2.0".into(), true)]
+    );
 
     // No host compiler.
-    assert_eq!(summary(eval_on(&Host::empty(), GCC)), [("14.2.0".into(), false)]);
+    assert_eq!(
+        summary(eval_on(&Host::empty(), GCC)),
+        [("14.2.0".into(), false)]
+    );
 
     // Missing executables are null, which is falsy.
-    let result = eval_on(&host_with_gcc("values", "13.1.0"), r#"program p {
+    let result = eval_on(
+        &host_with_gcc("values", "13.1.0"),
+        r#"program p {
         version("1");
         let v = host_version("gcc");
         if host_bin("clang") { bash { unreachable } }
         if host_bin("gcc") { bash { ${v} } }
-    }"#);
+    }"#,
+    );
     assert_eq!(result.versions[0].commands, ["13.1.0"]);
 }
 
@@ -520,9 +621,18 @@ fn use_host_requires_the_executable() {
 
 #[test]
 fn lists() {
-    assert_eq!(commands(r#"let xs = ["a b", 2, true]; bash { ${xs} }"#), ["a b 2 true"]);
-    assert_eq!(commands(r#"if [] { bash { empty } } if [1] { bash { full } }"#), ["full"]);
-    assert_eq!(commands(r#"if [1, [2]] == [1, [2]] { bash { equal } }"#), ["equal"]);
+    assert_eq!(
+        commands(r#"let xs = ["a b", 2, true]; bash { ${xs} }"#),
+        ["a b 2 true"]
+    );
+    assert_eq!(
+        commands(r#"if [] { bash { empty } } if [1] { bash { full } }"#),
+        ["full"]
+    );
+    assert_eq!(
+        commands(r#"if [1, [2]] == [1, [2]] { bash { equal } }"#),
+        ["equal"]
+    );
 }
 
 #[test]
@@ -544,13 +654,19 @@ fn exec_runs_programs_directly() {
         ["err false 4"]
     );
     // Without arguments, and with a path.
-    assert_eq!(commands(r#"let r = exec("/bin/true"); if r.success { bash { yes } }"#), ["yes"]);
+    assert_eq!(
+        commands(r#"let r = exec("/bin/true"); if r.success { bash { yes } }"#),
+        ["yes"]
+    );
 }
 
 #[test]
 fn exec_errors_point_at_the_call() {
     let (message, text) = run_err(r#"let r = exec("definitely-not-a-program", ["x"]);"#);
-    assert!(message.starts_with("cannot run `definitely-not-a-program`: "), "{message}");
+    assert!(
+        message.starts_with("cannot run `definitely-not-a-program`: "),
+        "{message}"
+    );
     assert_eq!(text, r#"exec("definitely-not-a-program", ["x"])"#);
     assert_eq!(
         run_err(r#"exec("echo", ["a", 1]);"#).0,
@@ -586,7 +702,11 @@ fn return_ends_the_program() {
     // Returning before any version is still a program without versions.
     let (arena, program) = parse("program p { return; version(\"1\"); }");
     let err = eval_program(&program, &mut Executor::new()).err().unwrap();
-    assert!(err.message.contains("does not specify a version"), "{}", err.render(&arena));
+    assert!(
+        err.message.contains("does not specify a version"),
+        "{}",
+        err.render(&arena)
+    );
 }
 
 #[test]
@@ -602,10 +722,20 @@ fn return_simplifies_host_recipes() {
         bash { make }
     }"#;
     let host_versions = |result: EvalResult| -> Vec<(String, bool)> {
-        result.versions.into_iter().map(|v| (v.version, v.host.is_some())).collect()
+        result
+            .versions
+            .into_iter()
+            .map(|v| (v.version, v.host.is_some()))
+            .collect()
     };
-    assert_eq!(host_versions(eval_on(&host_with_gcc("return", "14.2.0"), recipe)), [("14.2.0".into(), true)]);
-    assert_eq!(host_versions(eval_on(&Host::empty(), recipe)), [("14.2.0".into(), false)]);
+    assert_eq!(
+        host_versions(eval_on(&host_with_gcc("return", "14.2.0"), recipe)),
+        [("14.2.0".into(), true)]
+    );
+    assert_eq!(
+        host_versions(eval_on(&Host::empty(), recipe)),
+        [("14.2.0".into(), false)]
+    );
 }
 
 #[test]
@@ -639,11 +769,26 @@ fn build_system_helpers_add_commands() {
 
 #[test]
 fn build_system_helper_errors() {
-    assert_eq!(run_err("make(jobs = 0);").0, "`jobs` of `make` must be a positive whole number");
-    assert_eq!(run_err("make(jobs = 1.5);").0, "`jobs` of `make` must be a positive whole number");
-    assert_eq!(run_err(r#"cmake(env = ["CFLAGS"]);"#).0, "`env` of `cmake` expects `NAME=value` entries, found `CFLAGS`");
-    assert_eq!(run_err(r#"cargo(features = [1]);"#).0, "`features` of `cargo` must be a list of strings, found a number in it");
-    assert_eq!(run_err(r#"go(tag = "x");"#), ("`go` has no parameter named `tag`".into(), "tag".into()));
+    assert_eq!(
+        run_err("make(jobs = 0);").0,
+        "`jobs` of `make` must be a positive whole number"
+    );
+    assert_eq!(
+        run_err("make(jobs = 1.5);").0,
+        "`jobs` of `make` must be a positive whole number"
+    );
+    assert_eq!(
+        run_err(r#"cmake(env = ["CFLAGS"]);"#).0,
+        "`env` of `cmake` expects `NAME=value` entries, found `CFLAGS`"
+    );
+    assert_eq!(
+        run_err(r#"cargo(features = [1]);"#).0,
+        "`features` of `cargo` must be a list of strings, found a number in it"
+    );
+    assert_eq!(
+        run_err(r#"go(tag = "x");"#),
+        ("`go` has no parameter named `tag`".into(), "tag".into())
+    );
     let (arena, program) = parse("program p { cmake(); version(\"1\"); }");
     let err = eval_program(&program, &mut Executor::new()).err().unwrap();
     assert_eq!(err.message, "`cmake` must come after a `version(...)` call");
@@ -667,7 +812,13 @@ fn set_bin_can_name_the_link() {
 
     let err = |name: &str| run_err(&format!(r#"set_bin("bin/x", name = "{name}");"#)).0;
     assert_eq!(err(""), "the link name `` must not be empty");
-    assert_eq!(err("a/b"), "the link name `a/b` must be a file name, without `/`");
+    assert_eq!(
+        err("a/b"),
+        "the link name `a/b` must be a file name, without `/`"
+    );
     assert_eq!(err(".x"), "the link name `.x` must not start with `.`");
-    assert_eq!(err("a b"), "the link name `a b` must not contain spaces or control characters");
+    assert_eq!(
+        err("a b"),
+        "the link name `a b` must not contain spaces or control characters"
+    );
 }

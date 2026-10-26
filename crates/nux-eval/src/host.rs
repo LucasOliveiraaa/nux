@@ -21,7 +21,10 @@ pub struct Host {
 
 impl Host {
     pub fn new(search_path: Vec<PathBuf>, exclude: Vec<PathBuf>) -> Self {
-        let exclude = exclude.iter().map(|p| std::fs::canonicalize(p).unwrap_or_else(|_| p.clone())).collect();
+        let exclude = exclude
+            .iter()
+            .map(|p| std::fs::canonicalize(p).unwrap_or_else(|_| p.clone()))
+            .collect();
         Self {
             search_path,
             exclude,
@@ -31,7 +34,9 @@ impl Host {
 
     /// Searches `$PATH`, ignoring everything under `exclude`.
     pub fn from_env(exclude: Vec<PathBuf>) -> Self {
-        let search_path = std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect()).unwrap_or_default();
+        let search_path = std::env::var_os("PATH")
+            .map(|p| std::env::split_paths(&p).collect())
+            .unwrap_or_default();
         Self::new(search_path, exclude)
     }
 
@@ -45,10 +50,15 @@ impl Host {
         if name.is_empty() || name.contains('/') {
             return None;
         }
-        self.search_path.iter().map(|dir| dir.join(name)).find(|path| {
-            let Ok(real) = std::fs::canonicalize(path) else { return false };
-            is_executable(&real) && !self.exclude.iter().any(|ex| real.starts_with(ex))
-        })
+        self.search_path
+            .iter()
+            .map(|dir| dir.join(name))
+            .find(|path| {
+                let Ok(real) = std::fs::canonicalize(path) else {
+                    return false;
+                };
+                is_executable(&real) && !self.exclude.iter().any(|ex| real.starts_with(ex))
+            })
     }
 
     /// The version `name --version` reports (`flag` replaces `--version`):
@@ -57,7 +67,10 @@ impl Host {
         let path = self.find(name)?;
         let key = path.join(flag);
         let mut versions = self.versions.lock().unwrap();
-        versions.entry(key).or_insert_with(|| detect_version(&path, flag)).clone()
+        versions
+            .entry(key)
+            .or_insert_with(|| detect_version(&path, flag))
+            .clone()
     }
 }
 
@@ -75,8 +88,11 @@ fn detect_version(path: &Path, flag: &str) -> Option<String> {
         .output()
         .ok()?;
     // Some tools print their version to stderr.
-    let text = String::from_utf8_lossy(&output.stdout).into_owned() + &String::from_utf8_lossy(&output.stderr);
-    text.lines().find_map(|line| VERSION.find(line)).map(|m| m.as_str().to_string())
+    let text = String::from_utf8_lossy(&output.stdout).into_owned()
+        + &String::from_utf8_lossy(&output.stderr);
+    text.lines()
+        .find_map(|line| VERSION.find(line))
+        .map(|m| m.as_str().to_string())
 }
 
 #[cfg(test)]
@@ -92,7 +108,9 @@ mod tests {
     }
 
     fn temp(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("nux-host-tests-{}", std::process::id())).join(name);
+        let dir = std::env::temp_dir()
+            .join(format!("nux-host-tests-{}", std::process::id()))
+            .join(name);
         let _ = std::fs::remove_dir_all(&dir);
         dir
     }
@@ -103,7 +121,10 @@ mod tests {
         fake_bin(&dir.join("a"), "gcc", "gcc (Debian 14.2.0-19) 14.2.0");
         fake_bin(&dir.join("b"), "gcc", "gcc 9.9.9");
         std::fs::write(dir.join("a/notexec"), "").unwrap();
-        let host = Host::new(vec![dir.join("missing"), dir.join("a"), dir.join("b")], vec![]);
+        let host = Host::new(
+            vec![dir.join("missing"), dir.join("a"), dir.join("b")],
+            vec![],
+        );
 
         assert_eq!(host.find("gcc"), Some(dir.join("a/gcc")));
         assert_eq!(host.version("gcc", "--version").as_deref(), Some("14.2.0"));
@@ -117,10 +138,17 @@ mod tests {
         let dir = temp("exclude");
         fake_bin(&dir.join("nux/packages/gcc/1/install/bin"), "gcc", "1.0");
         std::fs::create_dir_all(dir.join("nux/bin")).unwrap();
-        std::os::unix::fs::symlink(dir.join("nux/packages/gcc/1/install/bin/gcc"), dir.join("nux/bin/gcc")).unwrap();
+        std::os::unix::fs::symlink(
+            dir.join("nux/packages/gcc/1/install/bin/gcc"),
+            dir.join("nux/bin/gcc"),
+        )
+        .unwrap();
         fake_bin(&dir.join("usr"), "gcc", "12.1");
 
-        let host = Host::new(vec![dir.join("nux/bin"), dir.join("usr")], vec![dir.join("nux")]);
+        let host = Host::new(
+            vec![dir.join("nux/bin"), dir.join("usr")],
+            vec![dir.join("nux")],
+        );
         assert_eq!(host.find("gcc"), Some(dir.join("usr/gcc")));
         assert_eq!(host.version("gcc", "--version").as_deref(), Some("12.1"));
         assert_eq!(Host::empty().find("sh"), None);

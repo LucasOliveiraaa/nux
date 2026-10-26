@@ -50,7 +50,10 @@ pub fn run(path: Option<&Path>, out: &mut impl Write, term: Term) -> Result<Path
     let dir = path.unwrap_or(Path::new("."));
     let manifest_path = dir.join(FILE_NAME);
     if manifest_path.exists() {
-        return Err(format!("`{}` already exists; not overwriting it", manifest_path.display()));
+        return Err(format!(
+            "`{}` already exists; not overwriting it",
+            manifest_path.display()
+        ));
     }
     std::fs::create_dir_all(dir.join("repository"))
         .map_err(|e| format!("cannot create `{}`: {e}", dir.join("repository").display()))?;
@@ -71,15 +74,34 @@ pub fn run(path: Option<&Path>, out: &mut impl Write, term: Term) -> Result<Path
 
     // What was written must load exactly as `nux sync` will load it.
     let env = Environment::load(&manifest_path)?;
-    repository::load(&env.repositories, &nux_eval::Host::empty(), repository::DEFAULT_JOBS)?;
+    repository::load(
+        &env.repositories,
+        &nux_eval::Host::empty(),
+        repository::DEFAULT_JOBS,
+    )?;
 
     write_header(out, term).map_err(w)?;
-    writeln!(out, "Created environment {} in `{}`:", term.paint(Style::Emphasis, &env.name), dir.display()).map_err(w)?;
+    writeln!(
+        out,
+        "Created environment {} in `{}`:",
+        term.paint(Style::Emphasis, &env.name),
+        dir.display()
+    )
+    .map_err(w)?;
     for file in created {
         writeln!(out, "  {file}").map_err(w)?;
     }
-    let sync = if path.is_none() { "nux sync".to_string() } else { format!("nux sync -e {}", dir.display()) };
-    writeln!(out, "\nTo build it, run:\n\n  {}", term.paint(Style::Emphasis, sync)).map_err(w)?;
+    let sync = if path.is_none() {
+        "nux sync".to_string()
+    } else {
+        format!("nux sync -e {}", dir.display())
+    };
+    writeln!(
+        out,
+        "\nTo build it, run:\n\n  {}",
+        term.paint(Style::Emphasis, sync)
+    )
+    .map_err(w)?;
     Ok(manifest_path)
 }
 
@@ -97,7 +119,9 @@ mod tests {
     use super::*;
 
     fn temp(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("nux-init-tests-{}", std::process::id())).join(name);
+        let dir = std::env::temp_dir()
+            .join(format!("nux-init-tests-{}", std::process::id()))
+            .join(name);
         let _ = std::fs::remove_dir_all(&dir);
         dir
     }
@@ -109,7 +133,10 @@ mod tests {
         let manifest = run(Some(&dir), &mut out, Term::PLAIN).unwrap();
         let env = Environment::load(&manifest).unwrap();
         assert_eq!(env.name, "my env");
-        assert_eq!(env.packages, [nux_resolver::Request::new("hello", "latest")]);
+        assert_eq!(
+            env.packages,
+            [nux_resolver::Request::new("hello", "latest")]
+        );
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
@@ -121,7 +148,13 @@ mod tests {
         // Never overwrites an environment.
         std::fs::write(&manifest, "# mine").unwrap();
         let err = run(Some(&dir), &mut Vec::new(), Term::PLAIN).unwrap_err();
-        assert_eq!(err, format!("`{}` already exists; not overwriting it", manifest.display()));
+        assert_eq!(
+            err,
+            format!(
+                "`{}` already exists; not overwriting it",
+                manifest.display()
+            )
+        );
         assert_eq!(std::fs::read_to_string(&manifest).unwrap(), "# mine");
     }
 
@@ -129,18 +162,28 @@ mod tests {
     fn keeps_an_existing_repository() {
         let dir = temp("existing");
         std::fs::create_dir_all(dir.join("repository")).unwrap();
-        std::fs::write(dir.join("repository/hello.nux"), r#"program hello { version("9"); }"#).unwrap();
+        std::fs::write(
+            dir.join("repository/hello.nux"),
+            r#"program hello { version("9"); }"#,
+        )
+        .unwrap();
         let mut out = Vec::new();
         run(Some(&dir), &mut out, Term::PLAIN).unwrap();
         let out = String::from_utf8(out).unwrap();
         assert!(out.contains(":\n  Nux.toml\n\n"), "{out}");
-        assert_eq!(std::fs::read_to_string(dir.join("repository/hello.nux")).unwrap(), r#"program hello { version("9"); }"#);
+        assert_eq!(
+            std::fs::read_to_string(dir.join("repository/hello.nux")).unwrap(),
+            r#"program hello { version("9"); }"#
+        );
     }
 
     #[test]
     fn names_with_quotes_stay_valid_toml() {
         let dir = temp("it's \"quoted\"");
         let manifest = run(Some(&dir), &mut Vec::new(), Term::PLAIN).unwrap();
-        assert_eq!(Environment::load(&manifest).unwrap().name, "it's \"quoted\"");
+        assert_eq!(
+            Environment::load(&manifest).unwrap().name,
+            "it's \"quoted\""
+        );
     }
 }

@@ -45,7 +45,10 @@ pub struct Term {
 
 impl Term {
     /// Plain output: no colors, no animation.
-    pub const PLAIN: Term = Term { color: false, animate: false };
+    pub const PLAIN: Term = Term {
+        color: false,
+        animate: false,
+    };
 
     pub fn stdout() -> Self {
         Self::detect(std::io::stdout().is_terminal())
@@ -75,7 +78,11 @@ impl Term {
 
 /// `[=========>          ]`, `width` characters between the brackets.
 pub fn bar(fraction: f64, width: usize) -> String {
-    let fraction = if fraction.is_finite() { fraction.clamp(0.0, 1.0) } else { 0.0 };
+    let fraction = if fraction.is_finite() {
+        fraction.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
     let filled = (fraction * width as f64).round() as usize;
     let mut bar = "=".repeat(filled);
     if filled < width {
@@ -146,7 +153,12 @@ const REDRAW_INTERVAL: Duration = Duration::from_millis(80);
 impl<W: Write + Send> MultiProgress<W> {
     pub fn new(out: W, animate: bool) -> Self {
         Self {
-            inner: Mutex::new(Inner { out, rows: Vec::new(), drawn: 0, last_draw: None }),
+            inner: Mutex::new(Inner {
+                out,
+                rows: Vec::new(),
+                drawn: 0,
+                last_draw: None,
+            }),
             animate,
         }
     }
@@ -165,7 +177,11 @@ impl<W: Write + Send> MultiProgress<W> {
     pub fn update(&self, row: usize, text: impl Into<String>) {
         let mut inner = self.inner.lock().unwrap();
         inner.rows[row] = text.into();
-        if self.animate && inner.last_draw.is_none_or(|t| t.elapsed() >= REDRAW_INTERVAL) {
+        if self.animate
+            && inner
+                .last_draw
+                .is_none_or(|t| t.elapsed() >= REDRAW_INTERVAL)
+        {
             inner.redraw();
         }
     }
@@ -212,7 +228,10 @@ mod tests {
 
     #[test]
     fn paints_only_with_color() {
-        let color = Term { color: true, animate: true };
+        let color = Term {
+            color: true,
+            animate: true,
+        };
         assert_eq!(color.paint(Style::Success, "Done!"), "\x1b[32mDone!\x1b[0m");
         assert_eq!(Term::PLAIN.paint(Style::Error, "error"), "error");
     }
@@ -246,7 +265,10 @@ mod tests {
         progress.update(a, "a 50%");
         progress.finish(b, "b done");
         progress.finish(a, "a done");
-        assert_eq!(String::from_utf8(progress.into_inner()).unwrap(), "b done\na done\n");
+        assert_eq!(
+            String::from_utf8(progress.into_inner()).unwrap(),
+            "b done\na done\n"
+        );
     }
 
     #[test]
@@ -257,6 +279,9 @@ mod tests {
         progress.finish(a, "a done");
         let out = String::from_utf8(progress.into_inner()).unwrap();
         // The last frame moves up over both rows and rewrites them.
-        assert!(out.ends_with("\x1b[2A\r\x1b[2Ka done\n\r\x1b[2Kb\n"), "{out:?}");
+        assert!(
+            out.ends_with("\x1b[2A\r\x1b[2Ka done\n\r\x1b[2Kb\n"),
+            "{out:?}"
+        );
     }
 }

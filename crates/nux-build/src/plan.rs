@@ -93,7 +93,9 @@ impl BuildPlan {
     }
 
     pub fn conflicts(&self) -> impl Iterator<Item = &Link> {
-        self.links.iter().filter(|l| matches!(l.status, LinkStatus::Conflict(_)))
+        self.links
+            .iter()
+            .filter(|l| matches!(l.status, LinkStatus::Conflict(_)))
     }
 
     /// The steps to build, in groups that are built one after another.
@@ -125,7 +127,8 @@ impl BuildPlan {
 
     /// Nothing to download, build or link.
     pub fn is_up_to_date(&self) -> bool {
-        self.to_build().next().is_none() && self.links.iter().all(|l| l.status == LinkStatus::Current)
+        self.to_build().next().is_none()
+            && self.links.iter().all(|l| l.status == LinkStatus::Current)
     }
 }
 
@@ -151,7 +154,10 @@ pub(crate) fn plan(
                 .add(source_fingerprint.as_deref().unwrap_or(""))
                 .add(package.bin.as_deref().unwrap_or(""));
             for library in &package.libraries {
-                fingerprint.add(&library.name).add(&library.lib).add(library.include.as_deref().unwrap_or(""));
+                fingerprint
+                    .add(&library.name)
+                    .add(&library.lib)
+                    .add(library.include.as_deref().unwrap_or(""));
             }
             // A different host executable means different dependents.
             if let Some(host) = &package.host {
@@ -170,15 +176,24 @@ pub(crate) fn plan(
             fingerprints.insert(package.id, fingerprint.clone());
 
             let metadata = Metadata::read(&paths.metadata);
-            let pin = pins.get(&(package.name.clone(), package.version.clone())).cloned();
-            let pinned = |identity: &SourceIdentity| pin.as_ref().is_none_or(|pin| identity.satisfies(pin));
+            let pin = pins
+                .get(&(package.name.clone(), package.version.clone()))
+                .cloned();
+            let pinned =
+                |identity: &SourceIdentity| pin.as_ref().is_none_or(|pin| identity.satisfies(pin));
             let installed = match &package.host {
                 Some(host) => executable(&host.path).is_ok(),
                 None => metadata.installed.as_ref().is_some_and(|record| {
                     record.fingerprint == fingerprint
                         && paths.install.is_dir()
-                        && package.bin.as_ref().is_none_or(|bin| executable(&paths.install.join(bin)).is_ok())
-                        && package.libraries.iter().all(|lib| library(&paths.install, lib).is_ok())
+                        && package
+                            .bin
+                            .as_ref()
+                            .is_none_or(|bin| executable(&paths.install.join(bin)).is_ok())
+                        && package
+                            .libraries
+                            .iter()
+                            .all(|lib| library(&paths.install, lib).is_ok())
                         && pinned(&record.identity)
                 }),
             };
@@ -188,7 +203,10 @@ pub(crate) fn plan(
                 Some(source) => match &source.kind {
                     SourceKind::Local(path) => SourceStatus::Local(local_root.join(path)),
                     _ if source_cached(&metadata, &paths, source_fingerprint.as_deref())
-                        && metadata.source.as_ref().is_some_and(|s| pinned(&s.identity)) =>
+                        && metadata
+                            .source
+                            .as_ref()
+                            .is_some_and(|s| pinned(&s.identity)) =>
                     {
                         SourceStatus::Cached
                     }
@@ -210,7 +228,11 @@ pub(crate) fn plan(
         .collect();
 
     let (links, warnings) = plan_links(workspace, &steps);
-    BuildPlan { steps, links, warnings }
+    BuildPlan {
+        steps,
+        links,
+        warnings,
+    }
 }
 
 fn source_cached(metadata: &Metadata, paths: &PackagePaths, fingerprint: Option<&str>) -> bool {
@@ -246,7 +268,10 @@ pub(crate) fn library(prefix: &Path, library: &nux_eval::Library) -> Result<(), 
         return Err(format!("its header directory `{include}` does not exist"));
     }
     let dir = prefix.join(&library.lib);
-    let (shared, archive) = (format!("lib{}.so", library.name), format!("lib{}.a", library.name));
+    let (shared, archive) = (
+        format!("lib{}.so", library.name),
+        format!("lib{}.a", library.name),
+    );
     let found = std::fs::read_dir(&dir).is_ok_and(|entries| {
         entries.filter_map(|e| e.ok()).any(|e| {
             let file = e.file_name().to_string_lossy().into_owned();
@@ -256,7 +281,10 @@ pub(crate) fn library(prefix: &Path, library: &nux_eval::Library) -> Result<(), 
     if found {
         Ok(())
     } else {
-        Err(format!("neither `{shared}` nor `{archive}` is in `{}`", library.lib))
+        Err(format!(
+            "neither `{shared}` nor `{archive}` is in `{}`",
+            library.lib
+        ))
     }
 }
 
@@ -266,7 +294,9 @@ fn plan_links(workspace: &Workspace, steps: &[Step]) -> (Vec<Link>, Vec<String>)
     let mut candidates: BTreeMap<String, Vec<&Step>> = BTreeMap::new();
     // Host executables are already on the PATH.
     for step in steps.iter().filter(|s| s.package.host.is_none()) {
-        let Some(bin) = &step.package.bin else { continue };
+        let Some(bin) = &step.package.bin else {
+            continue;
+        };
         // The name `set_bin` gave, or the executable's file name.
         let name = match &step.package.bin_name {
             Some(name) => name.clone(),
@@ -320,8 +350,13 @@ fn plan_links(workspace: &Workspace, steps: &[Step]) -> (Vec<Link>, Vec<String>)
 fn link_status(path: &Path, target: &Path) -> LinkStatus {
     match std::fs::read_link(path) {
         Ok(existing) if existing == target => LinkStatus::Current,
-        Ok(existing) if existing.starts_with(Path::new("..").join("packages")) => LinkStatus::Outdated,
-        Ok(existing) => LinkStatus::Conflict(format!("it links to `{}`, which nux does not manage", existing.display())),
+        Ok(existing) if existing.starts_with(Path::new("..").join("packages")) => {
+            LinkStatus::Outdated
+        }
+        Ok(existing) => LinkStatus::Conflict(format!(
+            "it links to `{}`, which nux does not manage",
+            existing.display()
+        )),
         Err(_) if path.symlink_metadata().is_ok() => {
             LinkStatus::Conflict("it is not a link created by nux".into())
         }

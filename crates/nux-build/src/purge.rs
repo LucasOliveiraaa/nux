@@ -56,7 +56,12 @@ impl Workspace {
         let entries = match std::fs::read_dir(&dir) {
             Ok(entries) => entries,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-            Err(e) => return Err(BuildError::io(format!("cannot read `{}`", dir.display()), e)),
+            Err(e) => {
+                return Err(BuildError::io(
+                    format!("cannot read `{}`", dir.display()),
+                    e,
+                ));
+            }
         };
         let mut files: Vec<PathBuf> = entries
             .filter_map(|e| e.ok())
@@ -68,24 +73,35 @@ impl Workspace {
     }
 
     pub(crate) fn record_path(&self, name: &str) -> PathBuf {
-        self.state_dir().join("environments").join(format!("{name}.json"))
+        self.state_dir()
+            .join("environments")
+            .join(format!("{name}.json"))
     }
 
     /// Versions the environment `name` needed at its last sync that `plan`
     /// no longer needs, no other environment uses, and that are in the
     /// workspace: what syncing `plan` leaves unused.
-    pub fn dropped_versions(&self, name: &str, plan: &BuildPlan) -> Result<Vec<Version>, BuildError> {
+    pub fn dropped_versions(
+        &self,
+        name: &str,
+        plan: &BuildPlan,
+    ) -> Result<Vec<Version>, BuildError> {
         let records = self.environment_records()?;
         let Some(old) = records.iter().find(|r| r.name == name) else {
             return Ok(Vec::new());
         };
-        let needed: HashSet<Version> =
-            plan.steps.iter().map(|s| (s.package.name.clone(), s.package.version.clone())).collect();
+        let needed: HashSet<Version> = plan
+            .steps
+            .iter()
+            .map(|s| (s.package.name.clone(), s.package.version.clone()))
+            .collect();
         let used = used_versions(records.iter().filter(|r| r.name != name));
         let mut dropped: Vec<Version> = old
             .packages
             .iter()
-            .filter(|v| !needed.contains(*v) && !used.contains(*v) && self.package(&v.0, &v.1).root.is_dir())
+            .filter(|v| {
+                !needed.contains(*v) && !used.contains(*v) && self.package(&v.0, &v.1).root.is_dir()
+            })
             .cloned()
             .collect();
         dropped.sort();
@@ -99,14 +115,22 @@ impl Workspace {
     /// itself are replaced instead, so they are left out.
     pub fn links_into(&self, versions: &[Version], plan: &BuildPlan) -> Vec<UnusedLink> {
         let renamed = |name: &str| {
-            let Ok(target) = std::fs::read_link(self.bin_dir().join(name)) else { return false };
-            plan.links.iter().any(|link| link.target == target && link.name != name)
+            let Ok(target) = std::fs::read_link(self.bin_dir().join(name)) else {
+                return false;
+            };
+            plan.links
+                .iter()
+                .any(|link| link.target == target && link.name != name)
         };
         self.managed_links()
             .into_iter()
             .filter(|(name, version)| versions.contains(version) || renamed(name))
             .filter(|(name, _)| !plan.links.iter().any(|l| &l.name == name))
-            .map(|(name, (package, version))| UnusedLink { name, package, version })
+            .map(|(name, (package, version))| UnusedLink {
+                name,
+                package,
+                version,
+            })
             .collect()
     }
 
@@ -116,11 +140,14 @@ impl Workspace {
         let mut removed = 0;
         for link in links {
             let path = self.bin_dir().join(&link.name);
-            let current = std::fs::read_link(&path).ok().and_then(|target| link_version(&target));
+            let current = std::fs::read_link(&path)
+                .ok()
+                .and_then(|target| link_version(&target));
             if current != Some((link.package.clone(), link.version.clone())) {
                 continue;
             }
-            std::fs::remove_file(&path).map_err(|e| BuildError::io(format!("cannot remove `{}`", path.display()), e))?;
+            std::fs::remove_file(&path)
+                .map_err(|e| BuildError::io(format!("cannot remove `{}`", path.display()), e))?;
             removed += 1;
         }
         Ok(removed)
@@ -135,18 +162,33 @@ impl Workspace {
         for (name, version) in self.managed_links() {
             if !used.contains(&version) {
                 let path = self.bin_dir().join(name);
-                items.push(CleanItem { kind: CleanKind::Link, bytes: size(&path), path, package: None });
+                items.push(CleanItem {
+                    kind: CleanKind::Link,
+                    bytes: size(&path),
+                    path,
+                    package: None,
+                });
             }
         }
         for version in self.version_dirs()? {
             if !used.contains(&version) {
                 let path = self.package(&version.0, &version.1).root;
-                items.push(CleanItem { kind: CleanKind::UnusedPackage, bytes: size(&path), path, package: Some(version) });
+                items.push(CleanItem {
+                    kind: CleanKind::UnusedPackage,
+                    bytes: size(&path),
+                    path,
+                    package: Some(version),
+                });
             }
         }
         for record in records.into_iter().filter(EnvironmentRecord::is_stale) {
             let path = record.file;
-            items.push(CleanItem { kind: CleanKind::EnvironmentRecord, bytes: size(&path), path, package: None });
+            items.push(CleanItem {
+                kind: CleanKind::EnvironmentRecord,
+                bytes: size(&path),
+                path,
+                package: None,
+            });
         }
         Ok(items)
     }
@@ -181,15 +223,22 @@ impl Workspace {
         records: &[EnvironmentRecord],
         used: &HashSet<Version>,
     ) -> Result<(), BuildError> {
-        let refuse = |reason: &str| BuildError::Clean { path: item.path.clone(), reason: reason.into() };
+        let refuse = |reason: &str| BuildError::Clean {
+            path: item.path.clone(),
+            reason: reason.into(),
+        };
         let outside = || refuse("it is not part of the Nux workspace layout");
         let version = match item.kind {
             CleanKind::Link => {
                 if item.path.parent() != Some(self.bin_dir().as_path()) {
                     return Err(outside());
                 }
-                let target = std::fs::read_link(&item.path).map_err(|_| refuse("it is not a link created by nux"))?;
-                Some(link_version(&target).ok_or_else(|| refuse("it is not a link created by nux"))?)
+                let target = std::fs::read_link(&item.path)
+                    .map_err(|_| refuse("it is not a link created by nux"))?;
+                Some(
+                    link_version(&target)
+                        .ok_or_else(|| refuse("it is not a link created by nux"))?,
+                )
             }
             CleanKind::UnusedPackage => match &item.package {
                 Some((name, version)) if self.package(name, version).root == item.path => {
@@ -235,7 +284,11 @@ impl Workspace {
 
 /// Versions the live (not stale) records use.
 fn used_versions<'a>(records: impl IntoIterator<Item = &'a EnvironmentRecord>) -> HashSet<Version> {
-    records.into_iter().filter(|r| !r.is_stale()).flat_map(|r| r.packages.iter().cloned()).collect()
+    records
+        .into_iter()
+        .filter(|r| !r.is_stale())
+        .flat_map(|r| r.packages.iter().cloned())
+        .collect()
 }
 
 /// The version a link target `../packages/<name>/<version>/...` points into.
@@ -255,7 +308,8 @@ fn read_record(file: &Path) -> Result<EnvironmentRecord, BuildError> {
             std::io::Error::new(std::io::ErrorKind::InvalidData, reason.to_string()),
         )
     };
-    let text = std::fs::read_to_string(file).map_err(|e| BuildError::io(format!("cannot read `{}`", file.display()), e))?;
+    let text = std::fs::read_to_string(file)
+        .map_err(|e| BuildError::io(format!("cannot read `{}`", file.display()), e))?;
     let value: Value = serde_json::from_str(&text).map_err(|e| invalid(&e.to_string()))?;
     let string = |v: &Value, key: &str| v.get(key).and_then(Value::as_str).map(str::to_string);
     let name = string(&value, "name").ok_or_else(|| invalid("it has no `name`"))?;
@@ -267,5 +321,10 @@ fn read_record(file: &Path) -> Result<EnvironmentRecord, BuildError> {
         .map(|p| Some((string(p, "name")?, string(p, "version")?)))
         .collect::<Option<Vec<_>>>()
         .ok_or_else(|| invalid("a package has no `name` or `version`"))?;
-    Ok(EnvironmentRecord { name, path: string(&value, "path").map(PathBuf::from), packages, file: file.to_path_buf() })
+    Ok(EnvironmentRecord {
+        name,
+        path: string(&value, "path").map(PathBuf::from),
+        packages,
+        file: file.to_path_buf(),
+    })
 }

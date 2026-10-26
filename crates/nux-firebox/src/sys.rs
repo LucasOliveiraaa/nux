@@ -40,7 +40,10 @@ pub(crate) enum Op {
     /// Die with the parent.
     DieWithParent,
     Unshare(c_int),
-    WriteFile { path: CString, contents: Vec<u8> },
+    WriteFile {
+        path: CString,
+        contents: Vec<u8>,
+    },
     /// The parent waits for the child and exits with its status; the child
     /// goes on with the next steps.
     Fork,
@@ -48,17 +51,30 @@ pub(crate) enum Op {
     MakePrivate,
     /// Takes a copy of `source` (and what is mounted under it) into `slot`,
     /// before the host is hidden.
-    Clone { source: CString, slot: usize, read_only: bool },
+    Clone {
+        source: CString,
+        slot: usize,
+        read_only: bool,
+    },
     /// Makes every mount read-only and ignores setuid bits.
     RootReadOnly,
-    Tmpfs { target: CString, options: CString },
+    Tmpfs {
+        target: CString,
+        options: CString,
+    },
     Dir(CString),
     File(CString),
     /// Mounts the copy in `slot` on `target`.
-    Attach { slot: usize, target: CString },
+    Attach {
+        slot: usize,
+        target: CString,
+    },
     Proc,
     Devpts,
-    Symlink { target: CString, link: CString },
+    Symlink {
+        target: CString,
+        link: CString,
+    },
     Hostname(CString),
     LoopbackUp,
     NoNewPrivileges,
@@ -70,7 +86,9 @@ impl Op {
         let show = |path: &CStr| path.to_string_lossy().into_owned();
         match self {
             Op::DieWithParent => "set the parent-death signal".into(),
-            Op::Unshare(_) => "create the namespaces (are unprivileged user namespaces enabled?)".into(),
+            Op::Unshare(_) => {
+                "create the namespaces (are unprivileged user namespaces enabled?)".into()
+            }
             Op::WriteFile { path, .. } => format!("write `{}`", show(path)),
             Op::Fork => "fork".into(),
             Op::MakePrivate => "make the mounts private".into(),
@@ -118,7 +136,9 @@ fn fail(report: c_int, index: usize, errno: c_int) -> ! {
 }
 
 fn errno() -> c_int {
-    io::Error::last_os_error().raw_os_error().unwrap_or(libc::EIO)
+    io::Error::last_os_error()
+        .raw_os_error()
+        .unwrap_or(libc::EIO)
 }
 
 fn check(result: c_long) -> Result<c_long, c_int> {
@@ -135,7 +155,9 @@ unsafe fn run(op: &Op, slots: &mut [c_int], report: c_int) -> Result<(), c_int> 
                 check(libc::unshare(*flags) as c_long)?;
             }
             Op::WriteFile { path, contents } => {
-                let fd = check(libc::open(path.as_ptr(), libc::O_WRONLY | libc::O_CLOEXEC) as c_long)? as c_int;
+                let fd =
+                    check(libc::open(path.as_ptr(), libc::O_WRONLY | libc::O_CLOEXEC) as c_long)?
+                        as c_int;
                 let written = libc::write(fd, contents.as_ptr().cast(), contents.len());
                 let error = errno();
                 libc::close(fd);
@@ -151,21 +173,54 @@ unsafe fn run(op: &Op, slots: &mut [c_int], report: c_int) -> Result<(), c_int> 
             }
             Op::MakePrivate => {
                 let flags = libc::MS_REC | libc::MS_PRIVATE;
-                check(libc::mount(std::ptr::null(), c"/".as_ptr(), std::ptr::null(), flags, std::ptr::null()) as c_long)?;
+                check(libc::mount(
+                    std::ptr::null(),
+                    c"/".as_ptr(),
+                    std::ptr::null(),
+                    flags,
+                    std::ptr::null(),
+                ) as c_long)?;
             }
-            Op::Clone { source, slot, read_only } => {
+            Op::Clone {
+                source,
+                slot,
+                read_only,
+            } => {
                 let flags = OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC | AT_RECURSIVE;
-                let fd = check(libc::syscall(libc::SYS_open_tree, libc::AT_FDCWD, source.as_ptr(), flags))? as c_int;
+                let fd = check(libc::syscall(
+                    libc::SYS_open_tree,
+                    libc::AT_FDCWD,
+                    source.as_ptr(),
+                    flags,
+                ))? as c_int;
                 slots[*slot] = fd;
                 let read_only = if *read_only { MOUNT_ATTR_RDONLY } else { 0 };
-                set_attributes(fd, c"", libc::AT_EMPTY_PATH as c_uint, read_only | MOUNT_ATTR_NOSUID, 0)?;
+                set_attributes(
+                    fd,
+                    c"",
+                    libc::AT_EMPTY_PATH as c_uint,
+                    read_only | MOUNT_ATTR_NOSUID,
+                    0,
+                )?;
             }
             Op::RootReadOnly => {
-                set_attributes(libc::AT_FDCWD, c"/", 0, MOUNT_ATTR_RDONLY | MOUNT_ATTR_NOSUID, 0)?;
+                set_attributes(
+                    libc::AT_FDCWD,
+                    c"/",
+                    0,
+                    MOUNT_ATTR_RDONLY | MOUNT_ATTR_NOSUID,
+                    0,
+                )?;
             }
             Op::Tmpfs { target, options } => {
                 let flags = libc::MS_NOSUID | libc::MS_NODEV;
-                check(libc::mount(c"tmpfs".as_ptr(), target.as_ptr(), c"tmpfs".as_ptr(), flags, options.as_ptr().cast()) as c_long)?;
+                check(libc::mount(
+                    c"tmpfs".as_ptr(),
+                    target.as_ptr(),
+                    c"tmpfs".as_ptr(),
+                    flags,
+                    options.as_ptr().cast(),
+                ) as c_long)?;
             }
             Op::Dir(path) => {
                 if libc::mkdir(path.as_ptr(), 0o755) != 0 && errno() != libc::EEXIST {
@@ -180,18 +235,37 @@ unsafe fn run(op: &Op, slots: &mut [c_int], report: c_int) -> Result<(), c_int> 
             Op::Attach { slot, target } => {
                 let fd = slots[*slot];
                 let flags = MOVE_MOUNT_F_EMPTY_PATH;
-                check(libc::syscall(libc::SYS_move_mount, fd, c"".as_ptr(), libc::AT_FDCWD, target.as_ptr(), flags))?;
+                check(libc::syscall(
+                    libc::SYS_move_mount,
+                    fd,
+                    c"".as_ptr(),
+                    libc::AT_FDCWD,
+                    target.as_ptr(),
+                    flags,
+                ))?;
                 libc::close(fd);
                 slots[*slot] = -1;
             }
             Op::Proc => {
                 let flags = libc::MS_NOSUID | libc::MS_NODEV | libc::MS_NOEXEC;
-                check(libc::mount(c"proc".as_ptr(), c"/proc".as_ptr(), c"proc".as_ptr(), flags, std::ptr::null()) as c_long)?;
+                check(libc::mount(
+                    c"proc".as_ptr(),
+                    c"/proc".as_ptr(),
+                    c"proc".as_ptr(),
+                    flags,
+                    std::ptr::null(),
+                ) as c_long)?;
             }
             Op::Devpts => {
                 let flags = libc::MS_NOSUID | libc::MS_NOEXEC;
                 let options = c"newinstance,ptmxmode=0666,mode=0620";
-                check(libc::mount(c"devpts".as_ptr(), c"/dev/pts".as_ptr(), c"devpts".as_ptr(), flags, options.as_ptr().cast()) as c_long)?;
+                check(libc::mount(
+                    c"devpts".as_ptr(),
+                    c"/dev/pts".as_ptr(),
+                    c"devpts".as_ptr(),
+                    flags,
+                    options.as_ptr().cast(),
+                ) as c_long)?;
             }
             Op::Symlink { target, link } => {
                 check(libc::symlink(target.as_ptr(), link.as_ptr()) as c_long)?;
@@ -200,7 +274,11 @@ unsafe fn run(op: &Op, slots: &mut [c_int], report: c_int) -> Result<(), c_int> 
                 check(libc::sethostname(name.as_ptr(), name.as_bytes().len()) as c_long)?;
             }
             Op::LoopbackUp => {
-                let socket = check(libc::socket(libc::AF_INET, libc::SOCK_DGRAM | libc::SOCK_CLOEXEC, 0) as c_long)? as c_int;
+                let socket = check(libc::socket(
+                    libc::AF_INET,
+                    libc::SOCK_DGRAM | libc::SOCK_CLOEXEC,
+                    0,
+                ) as c_long)? as c_int;
                 let mut request: libc::ifreq = std::mem::zeroed();
                 for (to, from) in request.ifr_name.iter_mut().zip(b"lo") {
                     *to = *from as libc::c_char;
@@ -225,11 +303,31 @@ unsafe fn run(op: &Op, slots: &mut [c_int], report: c_int) -> Result<(), c_int> 
 }
 
 /// `mount_setattr`, recursively.
-unsafe fn set_attributes(dirfd: c_int, path: &CStr, flags: c_uint, set: u64, clear: u64) -> Result<(), c_int> {
-    let attributes = MountAttr { attr_set: set, attr_clr: clear, propagation: 0, userns_fd: 0 };
+unsafe fn set_attributes(
+    dirfd: c_int,
+    path: &CStr,
+    flags: c_uint,
+    set: u64,
+    clear: u64,
+) -> Result<(), c_int> {
+    let attributes = MountAttr {
+        attr_set: set,
+        attr_clr: clear,
+        propagation: 0,
+        userns_fd: 0,
+    };
     let size = std::mem::size_of::<MountAttr>();
     // SAFETY: `attributes` outlives the call and `size` is its size.
-    check(unsafe { libc::syscall(libc::SYS_mount_setattr, dirfd, path.as_ptr(), flags | AT_RECURSIVE, &attributes, size) })?;
+    check(unsafe {
+        libc::syscall(
+            libc::SYS_mount_setattr,
+            dirfd,
+            path.as_ptr(),
+            flags | AT_RECURSIVE,
+            &attributes,
+            size,
+        )
+    })?;
     Ok(())
 }
 
@@ -247,7 +345,11 @@ fn supervise(child: libc::pid_t, report: c_int) -> ! {
             let mut status = 0;
             let pid = libc::waitpid(-1, &mut status, 0);
             if pid == child {
-                let code = if libc::WIFSIGNALED(status) { 128 + libc::WTERMSIG(status) } else { libc::WEXITSTATUS(status) };
+                let code = if libc::WIFSIGNALED(status) {
+                    128 + libc::WTERMSIG(status)
+                } else {
+                    libc::WEXITSTATUS(status)
+                };
                 libc::_exit(code);
             }
             if pid < 0 && errno() != libc::EINTR {

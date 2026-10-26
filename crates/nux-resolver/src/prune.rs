@@ -6,7 +6,10 @@ use crate::{PackageVersionId, ResolveError, VersionGraph};
 
 /// The versions reachable from `roots`, roots included. Fails on the first
 /// reachable dependency that could not be resolved.
-pub fn prune(graph: &VersionGraph, roots: &[PackageVersionId]) -> Result<BTreeSet<PackageVersionId>, ResolveError> {
+pub fn prune(
+    graph: &VersionGraph,
+    roots: &[PackageVersionId],
+) -> Result<BTreeSet<PackageVersionId>, ResolveError> {
     let mut required = BTreeSet::new();
     let mut stack: Vec<_> = roots.iter().rev().copied().collect();
 

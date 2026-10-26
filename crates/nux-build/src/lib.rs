@@ -22,8 +22,8 @@
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use nux_executor::{Access, Executor, Sandbox};
 use nux_resolver::{PackageVersionId, ResolvedPackage};
@@ -60,21 +60,51 @@ const LOG_TAIL: usize = 15;
 pub enum BuildError {
     /// Neither `NUX_HOME` nor `HOME` is set.
     NoHome,
-    Io { context: String, error: std::io::Error },
-    Download { package: String, version: String, message: String },
+    Io {
+        context: String,
+        error: std::io::Error,
+    },
+    Download {
+        package: String,
+        version: String,
+        message: String,
+    },
     /// Several downloads failed; each is reported separately.
     Downloads(Vec<BuildError>),
-    LocalSource { package: String, version: String, message: String },
+    LocalSource {
+        package: String,
+        version: String,
+        message: String,
+    },
     Command(Box<CommandFailure>),
     /// The `set_bin` target was not produced by the build.
-    Bin { package: String, version: String, path: PathBuf, reason: String },
+    Bin {
+        package: String,
+        version: String,
+        path: PathBuf,
+        reason: String,
+    },
     /// An `export_lib` library was not produced by the build.
-    Library { package: String, version: String, library: String, reason: String },
-    LinkConflict { path: PathBuf, reason: String },
+    Library {
+        package: String,
+        version: String,
+        library: String,
+        reason: String,
+    },
+    LinkConflict {
+        path: PathBuf,
+        reason: String,
+    },
     /// A clean item failed a safeguard.
-    Clean { path: PathBuf, reason: String },
+    Clean {
+        path: PathBuf,
+        reason: String,
+    },
     /// Another process holds the workspace lock.
-    Busy { home: PathBuf, pid: Option<u32> },
+    Busy {
+        home: PathBuf,
+        pid: Option<u32>,
+    },
     /// Builds must be sandboxed, but sandboxes cannot be created here.
     Sandbox(String),
 }
@@ -94,16 +124,25 @@ pub struct CommandFailure {
 
 impl BuildError {
     fn io(context: impl Into<String>, error: std::io::Error) -> Self {
-        BuildError::Io { context: context.into(), error }
+        BuildError::Io {
+            context: context.into(),
+            error,
+        }
     }
 }
 
 impl std::fmt::Display for BuildError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BuildError::NoHome => f.write_str("cannot locate the Nux home: neither NUX_HOME nor HOME is set"),
+            BuildError::NoHome => {
+                f.write_str("cannot locate the Nux home: neither NUX_HOME nor HOME is set")
+            }
             BuildError::Io { context, error } => write!(f, "{context}: {error}"),
-            BuildError::Download { package, version, message } => {
+            BuildError::Download {
+                package,
+                version,
+                message,
+            } => {
                 write!(f, "failed to download {package} {version}: {message}")
             }
             BuildError::Downloads(errors) => {
@@ -113,28 +152,59 @@ impl std::fmt::Display for BuildError {
                 }
                 Ok(())
             }
-            BuildError::LocalSource { package, version, message } => write!(f, "{package} {version}: {message}"),
+            BuildError::LocalSource {
+                package,
+                version,
+                message,
+            } => write!(f, "{package} {version}: {message}"),
             BuildError::Command(failure) => {
-                let CommandFailure { package, version, command, status, log, tail } = &**failure;
-                write!(f, "failed to build {package} {version}: `{command}` {status}")?;
+                let CommandFailure {
+                    package,
+                    version,
+                    command,
+                    status,
+                    log,
+                    tail,
+                } = &**failure;
+                write!(
+                    f,
+                    "failed to build {package} {version}: `{command}` {status}"
+                )?;
                 if !tail.is_empty() {
                     write!(f, "\n{tail}")?;
                 }
                 write!(f, "\nfull log: {}", log.display())
             }
-            BuildError::Bin { package, version, path, reason } => write!(
+            BuildError::Bin {
+                package,
+                version,
+                path,
+                reason,
+            } => write!(
                 f,
                 "{package} {version} declares `set_bin`, but `{}` {reason}",
                 path.display()
             ),
-            BuildError::Library { package, version, library, reason } => {
-                write!(f, "{package} {version} exports library `{library}`, but {reason}")
+            BuildError::Library {
+                package,
+                version,
+                library,
+                reason,
+            } => {
+                write!(
+                    f,
+                    "{package} {version} exports library `{library}`, but {reason}"
+                )
             }
             BuildError::LinkConflict { path, reason } => {
                 write!(f, "refusing to replace `{}`: {reason}", path.display())
             }
             BuildError::Busy { home, pid } => {
-                write!(f, "the Nux workspace `{}` is in use by another nux process", home.display())?;
+                write!(
+                    f,
+                    "the Nux workspace `{}` is in use by another nux process",
+                    home.display()
+                )?;
                 if let Some(pid) = pid {
                     write!(f, " (pid {pid})")?;
                 }
@@ -200,7 +270,11 @@ pub struct SandboxPolicy {
 
 impl Default for SandboxPolicy {
     fn default() -> Self {
-        Self { mode: SandboxMode::Auto, network: true, shared_caches: false }
+        Self {
+            mode: SandboxMode::Auto,
+            network: true,
+            shared_caches: false,
+        }
     }
 }
 
@@ -294,8 +368,18 @@ impl Builder {
 
     /// Inspects the workspace for `packages` (a build order, dependencies
     /// first); `requested` marks the versions the environment asked for.
-    pub fn plan(&self, packages: Vec<ResolvedPackage>, requested: &[PackageVersionId]) -> BuildPlan {
-        plan::plan(&self.workspace, &self.local_root, &self.pins, packages, requested)
+    pub fn plan(
+        &self,
+        packages: Vec<ResolvedPackage>,
+        requested: &[PackageVersionId],
+    ) -> BuildPlan {
+        plan::plan(
+            &self.workspace,
+            &self.local_root,
+            &self.pins,
+            packages,
+            requested,
+        )
     }
 
     /// Downloads the missing sources of packages that need building, from
@@ -323,7 +407,9 @@ impl Builder {
             for _ in 0..PARALLEL_DOWNLOADS.min(queue.len()) {
                 scope.spawn(|| {
                     while let Some(&step) = queue.get(next.fetch_add(1, Ordering::Relaxed)) {
-                        let result = fetch::fetch(&self.workspace, step, &|progress| reporter.download_progress(step, progress));
+                        let result = fetch::fetch(&self.workspace, step, &|progress| {
+                            reporter.download_progress(step, progress)
+                        });
                         match result {
                             Ok(fetch::Origin::Cache) => reporter.download_cached(step),
                             Ok(fetch::Origin::Network) => {
@@ -377,7 +463,8 @@ impl Builder {
                     let index = next.fetch_add(1, Ordering::Relaxed);
                     let Some(&step) = group.get(index) else { break };
                     reporter.build_started(step);
-                    let result = self.build_step(step, &DependencyExports::of(plan, step), sandboxed, jobs);
+                    let result =
+                        self.build_step(step, &DependencyExports::of(plan, step), sandboxed, jobs);
                     reporter.build_finished(step, result.as_ref().map(|_| ()));
                     match result {
                         Ok(()) => {
@@ -406,7 +493,13 @@ impl Builder {
         Ok(built)
     }
 
-    fn build_step(&self, step: &Step, exports: &DependencyExports, sandboxed: bool, jobs: usize) -> Result<(), BuildError> {
+    fn build_step(
+        &self,
+        step: &Step,
+        exports: &DependencyExports,
+        sandboxed: bool,
+        jobs: usize,
+    ) -> Result<(), BuildError> {
         let package = &step.package;
         let paths = &step.paths;
         let (name, version) = (&package.name, &package.version);
@@ -423,15 +516,19 @@ impl Builder {
 
         let (source_dir, source_path) = match &step.source {
             SourceStatus::None => (paths.build.clone(), paths.build.clone()),
-            SourceStatus::Local(path) => fetch::local_source(path).map_err(|message| BuildError::LocalSource {
-                package: name.clone(),
-                version: version.clone(),
-                message,
-            })?,
-            SourceStatus::Cached | SourceStatus::Missing => match &metadata.source.as_ref().and_then(|s| s.file.clone()) {
-                Some(file) => (paths.source.clone(), paths.source.join(file)),
-                None => (paths.source.clone(), paths.source.clone()),
-            },
+            SourceStatus::Local(path) => {
+                fetch::local_source(path).map_err(|message| BuildError::LocalSource {
+                    package: name.clone(),
+                    version: version.clone(),
+                    message,
+                })?
+            }
+            SourceStatus::Cached | SourceStatus::Missing => {
+                match &metadata.source.as_ref().and_then(|s| s.file.clone()) {
+                    Some(file) => (paths.source.clone(), paths.source.join(file)),
+                    None => (paths.source.clone(), paths.source.clone()),
+                }
+            }
         };
         // Builds run on a copy, so the downloaded source stays pristine and
         // reusable; a single-file source is only referenced.
@@ -440,7 +537,9 @@ impl Builder {
         }
 
         // A fresh environment per package: nothing leaks between builds.
-        let path = std::env::var_os("PATH").map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
+        let path = std::env::var_os("PATH")
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default();
         let mut executor = Executor::new();
         executor.set_cwd(&paths.build);
         executor.set_env("NUX_HOME", self.workspace.home().display().to_string());
@@ -451,7 +550,11 @@ impl Builder {
         executor.set_env("NUX_JOBS", jobs.to_string());
         // Links are only created once everything is built, so dependencies'
         // executables are reached through their install prefixes.
-        let mut search: Vec<String> = exports.bin.iter().map(|d| d.display().to_string()).collect();
+        let mut search: Vec<String> = exports
+            .bin
+            .iter()
+            .map(|d| d.display().to_string())
+            .collect();
         search.push(self.workspace.bin_dir().display().to_string());
         search.push(path);
         executor.set_env("PATH", search.join(":"));
@@ -475,7 +578,9 @@ impl Builder {
         for command in &package.commands {
             // The command first, so the log reads like a terminal session.
             let logged = writeln!(&log, "$ {command}").and_then(|()| (&log).flush());
-            logged.map_err(|e| BuildError::io(format!("cannot write `{}`", paths.log.display()), e))?;
+            logged.map_err(|e| {
+                BuildError::io(format!("cannot write `{}`", paths.log.display()), e)
+            })?;
             if let Err(status) = executor.execute_logged(command, &log) {
                 let _ = std::fs::remove_dir_all(&paths.install);
                 return Err(BuildError::Command(Box::new(CommandFailure {
@@ -493,7 +598,12 @@ impl Builder {
             let target = paths.install.join(bin);
             if let Err(reason) = plan::executable(&target) {
                 let _ = std::fs::remove_dir_all(&paths.install);
-                return Err(BuildError::Bin { package: name.clone(), version: version.clone(), path: target, reason });
+                return Err(BuildError::Bin {
+                    package: name.clone(),
+                    version: version.clone(),
+                    path: target,
+                    reason,
+                });
             }
         }
         for library in &package.libraries {
@@ -513,7 +623,11 @@ impl Builder {
         metadata.installed = Some(InstallRecord {
             fingerprint: step.fingerprint.clone(),
             bin: package.bin.clone(),
-            identity: metadata.source.as_ref().map(|s| s.identity.clone()).unwrap_or_default(),
+            identity: metadata
+                .source
+                .as_ref()
+                .map(|s| s.identity.clone())
+                .unwrap_or_default(),
         });
         metadata.write(&paths.metadata, name, version)
     }
@@ -543,9 +657,13 @@ impl Builder {
     /// each tool at its directory; created if needed.
     fn shared_caches(&self) -> Result<[(&'static str, PathBuf); 2], BuildError> {
         let cache = self.workspace.cache_dir();
-        let caches = [("CARGO_HOME", cache.join("cargo")), ("GOMODCACHE", cache.join("go").join("mod"))];
+        let caches = [
+            ("CARGO_HOME", cache.join("cargo")),
+            ("GOMODCACHE", cache.join("go").join("mod")),
+        ];
         for (_, dir) in &caches {
-            std::fs::create_dir_all(dir).map_err(|e| BuildError::io(format!("cannot create `{}`", dir.display()), e))?;
+            std::fs::create_dir_all(dir)
+                .map_err(|e| BuildError::io(format!("cannot create `{}`", dir.display()), e))?;
         }
         Ok(caches)
     }
@@ -556,13 +674,23 @@ impl Builder {
     pub fn link_executables(&self, plan: &BuildPlan) -> Result<usize, BuildError> {
         let bin = self.workspace.bin_dir();
         if let Some(link) = plan.conflicts().next() {
-            let LinkStatus::Conflict(reason) = &link.status else { unreachable!() };
-            return Err(BuildError::LinkConflict { path: bin.join(&link.name), reason: reason.clone() });
+            let LinkStatus::Conflict(reason) = &link.status else {
+                unreachable!()
+            };
+            return Err(BuildError::LinkConflict {
+                path: bin.join(&link.name),
+                reason: reason.clone(),
+            });
         }
-        std::fs::create_dir_all(&bin).map_err(|e| BuildError::io(format!("cannot create `{}`", bin.display()), e))?;
+        std::fs::create_dir_all(&bin)
+            .map_err(|e| BuildError::io(format!("cannot create `{}`", bin.display()), e))?;
 
         let mut changed = 0;
-        for link in plan.links.iter().filter(|l| l.status != LinkStatus::Current) {
+        for link in plan
+            .links
+            .iter()
+            .filter(|l| l.status != LinkStatus::Current)
+        {
             let path = bin.join(&link.name);
             let target = bin.join(&link.target);
             if let Err(reason) = plan::executable(&target) {
@@ -587,25 +715,35 @@ impl Builder {
     /// Records which versions the environment `name`, defined in `path`,
     /// resolved to. `nux purge` keeps what the records of existing
     /// environments use.
-    pub fn record_environment(&self, name: &str, path: &Path, plan: &BuildPlan) -> Result<(), BuildError> {
+    pub fn record_environment(
+        &self,
+        name: &str,
+        path: &Path,
+        plan: &BuildPlan,
+    ) -> Result<(), BuildError> {
         let packages: Vec<_> = plan
             .steps
             .iter()
             .map(|s| json!({ "name": s.package.name, "version": s.package.version, "requested": s.requested }))
             .collect();
-        let path = std::fs::canonicalize(path).or_else(|_| std::path::absolute(path)).unwrap_or_else(|_| path.to_path_buf());
+        let path = std::fs::canonicalize(path)
+            .or_else(|_| std::path::absolute(path))
+            .unwrap_or_else(|_| path.to_path_buf());
         let value = json!({ "name": name, "path": path, "packages": packages });
         let path = self.workspace.record_path(name);
-        let text = serde_json::to_string_pretty(&value).expect("json values always serialize") + "\n";
+        let text =
+            serde_json::to_string_pretty(&value).expect("json values always serialize") + "\n";
         write_atomic(&path, text.as_bytes())
     }
 }
 
 fn reset_dir(dir: &Path) -> Result<(), BuildError> {
     if dir.exists() {
-        std::fs::remove_dir_all(dir).map_err(|e| BuildError::io(format!("cannot clean `{}`", dir.display()), e))?;
+        std::fs::remove_dir_all(dir)
+            .map_err(|e| BuildError::io(format!("cannot clean `{}`", dir.display()), e))?;
     }
-    std::fs::create_dir_all(dir).map_err(|e| BuildError::io(format!("cannot create `{}`", dir.display()), e))
+    std::fs::create_dir_all(dir)
+        .map_err(|e| BuildError::io(format!("cannot create `{}`", dir.display()), e))
 }
 
 /// Copies the contents of `from` into `to`, keeping symlinks and skipping
@@ -619,10 +757,14 @@ fn copy_dir(from: &Path, to: &Path) -> Result<(), BuildError> {
         if entry.file_name() == ".git" {
             continue;
         }
-        let kind = entry.file_type().map_err(|e| BuildError::io(context(&source), e))?;
+        let kind = entry
+            .file_type()
+            .map_err(|e| BuildError::io(context(&source), e))?;
         if kind.is_symlink() {
-            let link = std::fs::read_link(&source).map_err(|e| BuildError::io(context(&source), e))?;
-            std::os::unix::fs::symlink(link, &target).map_err(|e| BuildError::io(context(&source), e))?;
+            let link =
+                std::fs::read_link(&source).map_err(|e| BuildError::io(context(&source), e))?;
+            std::os::unix::fs::symlink(link, &target)
+                .map_err(|e| BuildError::io(context(&source), e))?;
         } else if kind.is_dir() {
             std::fs::create_dir_all(&target).map_err(|e| BuildError::io(context(&source), e))?;
             copy_dir(&source, &target)?;

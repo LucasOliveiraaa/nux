@@ -63,9 +63,12 @@ pub struct Edit {
 impl Edit {
     /// Writes the file, reporting it with `indent`.
     fn save(&self, out: &mut impl Write, indent: &str) -> Result<(), String> {
-        let Some(text) = &self.text else { return Ok(()) };
+        let Some(text) = &self.text else {
+            return Ok(());
+        };
         nux_build::write_atomic(&self.path, text.as_bytes()).map_err(|e| e.to_string())?;
-        writeln!(out, "\n{indent}Updated `{}`.", self.path.display()).map_err(|e| format!("cannot write output: {e}"))
+        writeln!(out, "\n{indent}Updated `{}`.", self.path.display())
+            .map_err(|e| format!("cannot write output: {e}"))
     }
 }
 
@@ -75,7 +78,9 @@ where
     W: Write + Send + Clone,
     R: BufRead,
 {
-    run_with(options, io, |config| Ok((Environment::select(&options.environment, config)?, None)))
+    run_with(options, io, |config| {
+        Ok((Environment::select(&options.environment, config)?, None))
+    })
 }
 
 /// Syncs the environment `prepare` loads, saving its [`Edit`], if any, once
@@ -89,13 +94,26 @@ where
     W: Write + Send + Clone,
     R: BufRead,
 {
-    let Io { term, mut out, mut input, workspace, path, host, config } = io;
+    let Io {
+        term,
+        mut out,
+        mut input,
+        workspace,
+        path,
+        host,
+        config,
+    } = io;
     let w = |e: std::io::Error| format!("cannot write output: {e}");
 
     write_header(&mut out, term).map_err(w)?;
     let (env, edit) = prepare(&config)?;
     let global = if env.global { " (global)" } else { "" };
-    writeln!(out, "Environment: {}{global}\n", term.paint(Style::Emphasis, &env.name)).map_err(w)?;
+    writeln!(
+        out,
+        "Environment: {}{global}\n",
+        term.paint(Style::Emphasis, &env.name)
+    )
+    .map_err(w)?;
     if let Some(edit) = &edit {
         writeln!(out, "{}\n", edit.message).map_err(w)?;
     }
@@ -116,9 +134,15 @@ where
     let _workspace_lock = lock_workspace(&workspace, options.wait, &mut out)?;
     writeln!(out, "Checking installed packages...").map_err(w)?;
     let workspace_existed = workspace.exists();
-    let pins = old_lock.as_ref().map(|lock| lock.pins(&packages)).unwrap_or_default();
-    let mut builder =
-        Builder::new(workspace.home()).with_local_root(env.root()).with_pins(pins).with_sandbox(config.sandbox).with_parallel_builds(config.parallel_builds);
+    let pins = old_lock
+        .as_ref()
+        .map(|lock| lock.pins(&packages))
+        .unwrap_or_default();
+    let mut builder = Builder::new(workspace.home())
+        .with_local_root(env.root())
+        .with_pins(pins)
+        .with_sandbox(config.sandbox)
+        .with_parallel_builds(config.parallel_builds);
     let plan = builder.plan(packages, &requested);
     if options.locked
         && let Some(old) = &old_lock
@@ -142,11 +166,15 @@ where
         writeln!(out, "{} {warning}", term.paint(Style::Warning, "warning:")).map_err(w)?;
     }
     // Links into what this environment no longer needs, and nothing else does.
-    let dropped = workspace.dropped_versions(&env.name, &plan).map_err(|e| e.to_string())?;
+    let dropped = workspace
+        .dropped_versions(&env.name, &plan)
+        .map_err(|e| e.to_string())?;
     let unused_links = workspace.links_into(&dropped, &plan);
     if let Some(conflict) = plan.conflicts().next() {
         // Checked before any work, so nothing is built in vain.
-        let LinkStatus::Conflict(reason) = &conflict.status else { unreachable!() };
+        let LinkStatus::Conflict(reason) = &conflict.status else {
+            unreachable!()
+        };
         return Err(format!(
             "cannot link `{}`: `{}` already exists and {reason}",
             conflict.name,
@@ -158,17 +186,29 @@ where
         if let Some(edit) = &edit {
             edit.save(&mut out, "")?;
         }
-        builder.record_environment(&env.name, &env.path, &plan).map_err(|e| e.to_string())?;
+        builder
+            .record_environment(&env.name, &env.path, &plan)
+            .map_err(|e| e.to_string())?;
         if update_lock(&plan)? {
             writeln!(out, "\nUpdated `{}`.", lock_path.display()).map_err(w)?;
         }
         if unused_links.is_empty() {
-            writeln!(out, "\n{}", term.paint(Style::Success, "Environment is already up to date.")).map_err(w)?;
+            writeln!(
+                out,
+                "\n{}",
+                term.paint(Style::Success, "Environment is already up to date.")
+            )
+            .map_err(w)?;
             return Ok(Outcome::UpToDate);
         }
         writeln!(out).map_err(w)?;
         remove_links(&workspace, &unused_links, &mut out)?;
-        writeln!(out, "\n{}", term.paint(Style::Success, "Nux finished syncing the environment.")).map_err(w)?;
+        writeln!(
+            out,
+            "\n{}",
+            term.paint(Style::Success, "Nux finished syncing the environment.")
+        )
+        .map_err(w)?;
         write_purge_hint(&dropped, term, &mut out)?;
         return Ok(Outcome::Synced);
     }
@@ -187,27 +227,59 @@ where
         writeln!(out, "\nThe environment requests the following packages:").map_err(w)?;
         write_packages(
             &mut out,
-            plan.steps.iter().filter(|s| s.requested).map(|s| (s.package.name.as_str(), s.package.version.as_str())),
+            plan.steps
+                .iter()
+                .filter(|s| s.requested)
+                .map(|s| (s.package.name.as_str(), s.package.version.as_str())),
         )
         .map_err(w)?;
-        let hosted: Vec<_> = plan.steps.iter().filter_map(|s| Some((s, s.host()?))).collect();
+        let hosted: Vec<_> = plan
+            .steps
+            .iter()
+            .filter_map(|s| Some((s, s.host()?)))
+            .collect();
         if !hosted.is_empty() {
             writeln!(out, "\nThe following packages are provided by the host:").map_err(w)?;
-            let width = hosted.iter().map(|(s, _)| s.package.name.chars().count()).max().unwrap_or(0);
-            let version_width = hosted.iter().map(|(s, _)| s.package.version.chars().count()).max().unwrap_or(0);
+            let width = hosted
+                .iter()
+                .map(|(s, _)| s.package.name.chars().count())
+                .max()
+                .unwrap_or(0);
+            let version_width = hosted
+                .iter()
+                .map(|(s, _)| s.package.version.chars().count())
+                .max()
+                .unwrap_or(0);
             for (step, path) in hosted {
-                writeln!(out, "  {:<width$} {:<version_width$} {}", step.package.name, step.package.version, path.display())
-                    .map_err(w)?;
+                writeln!(
+                    out,
+                    "  {:<width$} {:<version_width$} {}",
+                    step.package.name,
+                    step.package.version,
+                    path.display()
+                )
+                .map_err(w)?;
             }
         }
         writeln!(out, "\nThe following packages will be built:").map_err(w)?;
-        write_packages(&mut out, to_build.iter().map(|s| (s.package.name.as_str(), s.package.version.as_str())))
-            .map_err(w)?;
+        write_packages(
+            &mut out,
+            to_build
+                .iter()
+                .map(|s| (s.package.name.as_str(), s.package.version.as_str())),
+        )
+        .map_err(w)?;
         writeln!(
             out,
             "\n{}, {}.",
-            term.paint(Style::Emphasis, format!("{} to build", count(to_build.len(), "package"))),
-            term.paint(Style::Emphasis, format!("{} to download", count(plan.downloads(), "source"))),
+            term.paint(
+                Style::Emphasis,
+                format!("{} to build", count(to_build.len(), "package"))
+            ),
+            term.paint(
+                Style::Emphasis,
+                format!("{} to download", count(plan.downloads(), "source"))
+            ),
         )
         .map_err(w)?;
 
@@ -239,14 +311,21 @@ where
     }
 
     writeln!(out, "\n  Updating environment...").map_err(w)?;
-    builder.record_environment(&env.name, &env.path, &plan).map_err(|e| e.to_string())?;
+    builder
+        .record_environment(&env.name, &env.path, &plan)
+        .map_err(|e| e.to_string())?;
     writeln!(out, "  Updating executable links...").map_err(w)?;
     builder.link_executables(&plan).map_err(|e| e.to_string())?;
     if !unused_links.is_empty() {
         remove_links(&workspace, &unused_links, &mut out)?;
     }
 
-    writeln!(out, "\n{}", term.paint(Style::Success, "Nux finished syncing the environment.")).map_err(w)?;
+    writeln!(
+        out,
+        "\n{}",
+        term.paint(Style::Success, "Nux finished syncing the environment.")
+    )
+    .map_err(w)?;
     write_purge_hint(&dropped, term, &mut out)?;
     if !plan.links.is_empty() && !on_path(&workspace.bin_dir(), path.as_deref()) {
         let bin = bin_for_shell(&workspace);
@@ -261,20 +340,40 @@ where
 }
 
 /// Removes links to versions the environment no longer needs.
-fn remove_links(workspace: &Workspace, links: &[nux_build::UnusedLink], out: &mut impl Write) -> Result<(), String> {
+fn remove_links(
+    workspace: &Workspace,
+    links: &[nux_build::UnusedLink],
+    out: &mut impl Write,
+) -> Result<(), String> {
     workspace.remove_links(links).map_err(|e| e.to_string())?;
     let names: Vec<_> = links.iter().map(|l| l.name.as_str()).collect();
-    writeln!(out, "  Removed {}: {}", if names.len() == 1 { "link" } else { "links" }, names.join(", "))
-        .map_err(|e| format!("cannot write output: {e}"))
+    writeln!(
+        out,
+        "  Removed {}: {}",
+        if names.len() == 1 { "link" } else { "links" },
+        names.join(", ")
+    )
+    .map_err(|e| format!("cannot write output: {e}"))
 }
 
 /// Points at `nux purge` when versions are left unused.
-fn write_purge_hint(dropped: &[(String, String)], term: Term, out: &mut impl Write) -> Result<(), String> {
+fn write_purge_hint(
+    dropped: &[(String, String)],
+    term: Term,
+    out: &mut impl Write,
+) -> Result<(), String> {
     if dropped.is_empty() {
         return Ok(());
     }
-    let list: Vec<_> = dropped.iter().map(|(name, version)| format!("{name} {version}")).collect();
-    let (are, them) = if list.len() == 1 { ("is", "it") } else { ("are", "them") };
+    let list: Vec<_> = dropped
+        .iter()
+        .map(|(name, version)| format!("{name} {version}"))
+        .collect();
+    let (are, them) = if list.len() == 1 {
+        ("is", "it")
+    } else {
+        ("are", "them")
+    };
     writeln!(
         out,
         "\n{} {are} no longer used by any environment; run `{}` to remove {them}.",
@@ -290,7 +389,13 @@ fn bin_for_shell(workspace: &Workspace) -> String {
         return "$NUX_HOME/bin".into();
     }
     let home = std::env::var_os("HOME").map(PathBuf::from);
-    match home.as_deref().and_then(|home| workspace.bin_dir().strip_prefix(home).ok().map(Path::to_path_buf)) {
+    match home.as_deref().and_then(|home| {
+        workspace
+            .bin_dir()
+            .strip_prefix(home)
+            .ok()
+            .map(Path::to_path_buf)
+    }) {
         Some(relative) => format!("$HOME/{}", relative.display()),
         None => workspace.bin_dir().display().to_string(),
     }
@@ -305,12 +410,17 @@ fn download<W: Write + Send + Clone>(
     out: &mut W,
 ) -> Result<(), String> {
     let w = |e: std::io::Error| format!("cannot write output: {e}");
-    if !plan.to_build().any(|s| matches!(s.source, SourceStatus::Cached | SourceStatus::Missing)) {
+    if !plan
+        .to_build()
+        .any(|s| matches!(s.source, SourceStatus::Cached | SourceStatus::Missing))
+    {
         return Ok(());
     }
     writeln!(out).map_err(w)?;
     let started = Instant::now();
-    let downloaded = builder.download(plan, reporter).map_err(|e| e.to_string())?;
+    let downloaded = builder
+        .download(plan, reporter)
+        .map_err(|e| e.to_string())?;
     if downloaded > 0 {
         writeln!(
             out,
@@ -360,11 +470,17 @@ pub fn resolve_environment(
     if let Some(lock) = lock {
         lock.prefer_in(&mut resolver);
     }
-    let packages = resolver.resolve(&env.packages).map_err(|e| explain(e, env))?;
+    let packages = resolver
+        .resolve(&env.packages)
+        .map_err(|e| explain(e, env))?;
     let requested = env
         .packages
         .iter()
-        .map(|r| resolver.select(&r.name, &r.version).expect("resolve selected it already"))
+        .map(|r| {
+            resolver
+                .select(&r.name, &r.version)
+                .expect("resolve selected it already")
+        })
         .collect();
     Ok((packages, requested))
 }
@@ -380,13 +496,18 @@ pub fn on_path(bin: &Path, path: Option<&std::ffi::OsStr>) -> bool {
 fn explain(err: ResolveError, env: &Environment) -> String {
     let unknown = match &err {
         ResolveError::UnknownPackage { .. } => true,
-        ResolveError::InDependency { error, .. } => matches!(**error, ResolveError::UnknownPackage { .. }),
+        ResolveError::InDependency { error, .. } => {
+            matches!(**error, ResolveError::UnknownPackage { .. })
+        }
         _ => false,
     };
     if !unknown {
         return err.to_string();
     }
-    let searched: Vec<_> = env.repositories.iter().map(|r| format!("`{}`", r.display())).collect();
+    let searched: Vec<_> = env
+        .repositories
+        .iter()
+        .map(|r| format!("`{}`", r.display()))
+        .collect();
     format!("{err} (searched: {})", searched.join(", "))
 }
-

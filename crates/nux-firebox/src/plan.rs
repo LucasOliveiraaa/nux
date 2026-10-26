@@ -48,7 +48,9 @@ impl Plan {
                 continue;
             }
             match exposed.iter_mut().find(|(p, _)| *p == path) {
-                Some((_, existing)) if access == &Access::ReadWrite => *existing = Access::ReadWrite,
+                Some((_, existing)) if access == &Access::ReadWrite => {
+                    *existing = Access::ReadWrite
+                }
                 Some(_) => {}
                 None => exposed.push((path, *access)),
             }
@@ -64,7 +66,10 @@ impl Plan {
         if is_hidden(&cwd) && !exposed.iter().any(|(path, _)| cwd.starts_with(path)) {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
-                format!("the working directory `{}` is hidden in the sandbox; expose it", cwd.display()),
+                format!(
+                    "the working directory `{}` is hidden in the sandbox; expose it",
+                    cwd.display()
+                ),
             ));
         }
         // Parents before children, so a writable directory can sit inside a
@@ -74,9 +79,18 @@ impl Plan {
         let mut ops = vec![
             Op::DieWithParent,
             Op::Unshare(namespaces),
-            Op::WriteFile { path: c("/proc/self/setgroups")?, contents: b"deny".to_vec() },
-            Op::WriteFile { path: c("/proc/self/uid_map")?, contents: format!("{uid} {uid} 1\n").into_bytes() },
-            Op::WriteFile { path: c("/proc/self/gid_map")?, contents: format!("{gid} {gid} 1\n").into_bytes() },
+            Op::WriteFile {
+                path: c("/proc/self/setgroups")?,
+                contents: b"deny".to_vec(),
+            },
+            Op::WriteFile {
+                path: c("/proc/self/uid_map")?,
+                contents: format!("{uid} {uid} 1\n").into_bytes(),
+            },
+            Op::WriteFile {
+                path: c("/proc/self/gid_map")?,
+                contents: format!("{gid} {gid} 1\n").into_bytes(),
+            },
             // The child is the first process of the new PID namespace.
             Op::Fork,
             Op::DieWithParent,
@@ -87,7 +101,11 @@ impl Plan {
         let mut slots = 0;
         let mut attach = Vec::new();
         for (path, access) in &exposed {
-            ops.push(Op::Clone { source: c(path)?, slot: slots, read_only: *access == Access::ReadOnly });
+            ops.push(Op::Clone {
+                source: c(path)?,
+                slot: slots,
+                read_only: *access == Access::ReadOnly,
+            });
             attach.push((slots, path.clone()));
             slots += 1;
         }
@@ -95,7 +113,11 @@ impl Plan {
         for device in DEVICES {
             let path = Path::new("/dev").join(device);
             if path.exists() {
-                ops.push(Op::Clone { source: c(&path)?, slot: slots, read_only: false });
+                ops.push(Op::Clone {
+                    source: c(&path)?,
+                    slot: slots,
+                    read_only: false,
+                });
                 devices.push((slots, path));
                 slots += 1;
             }
@@ -103,24 +125,49 @@ impl Plan {
 
         ops.push(Op::RootReadOnly);
         for dir in &hidden {
-            let mode = if dir.starts_with("/tmp") || dir.starts_with("/var/tmp") { "mode=1777" } else { "mode=0755" };
-            ops.push(Op::Tmpfs { target: c(dir)?, options: c(mode)? });
+            let mode = if dir.starts_with("/tmp") || dir.starts_with("/var/tmp") {
+                "mode=1777"
+            } else {
+                "mode=0755"
+            };
+            ops.push(Op::Tmpfs {
+                target: c(dir)?,
+                options: c(mode)?,
+            });
         }
 
-        ops.push(Op::Tmpfs { target: c("/dev")?, options: c("mode=0755")? });
+        ops.push(Op::Tmpfs {
+            target: c("/dev")?,
+            options: c("mode=0755")?,
+        });
         for (slot, path) in devices {
             ops.push(Op::File(c(&path)?));
-            ops.push(Op::Attach { slot, target: c(&path)? });
+            ops.push(Op::Attach {
+                slot,
+                target: c(&path)?,
+            });
         }
         ops.push(Op::Dir(c("/dev/pts")?));
         ops.push(Op::Devpts);
-        ops.push(Op::Symlink { target: c("pts/ptmx")?, link: c("/dev/ptmx")? });
+        ops.push(Op::Symlink {
+            target: c("pts/ptmx")?,
+            link: c("/dev/ptmx")?,
+        });
         ops.push(Op::Dir(c("/dev/shm")?));
-        ops.push(Op::Tmpfs { target: c("/dev/shm")?, options: c("mode=1777")? });
-        for (link, target) in
-            [("fd", "/proc/self/fd"), ("stdin", "/proc/self/fd/0"), ("stdout", "/proc/self/fd/1"), ("stderr", "/proc/self/fd/2")]
-        {
-            ops.push(Op::Symlink { target: c(target)?, link: c(Path::new("/dev").join(link))? });
+        ops.push(Op::Tmpfs {
+            target: c("/dev/shm")?,
+            options: c("mode=1777")?,
+        });
+        for (link, target) in [
+            ("fd", "/proc/self/fd"),
+            ("stdin", "/proc/self/fd/0"),
+            ("stdout", "/proc/self/fd/1"),
+            ("stderr", "/proc/self/fd/2"),
+        ] {
+            ops.push(Op::Symlink {
+                target: c(target)?,
+                link: c(Path::new("/dev").join(link))?,
+            });
         }
         ops.push(Op::Proc);
 
@@ -130,9 +177,16 @@ impl Plan {
                 for dir in between(root, path.parent().unwrap_or(root)) {
                     ops.push(Op::Dir(c(dir)?));
                 }
-                ops.push(if path.is_dir() { Op::Dir(c(&path)?) } else { Op::File(c(&path)?) });
+                ops.push(if path.is_dir() {
+                    Op::Dir(c(&path)?)
+                } else {
+                    Op::File(c(&path)?)
+                });
             }
-            ops.push(Op::Attach { slot, target: c(&path)? });
+            ops.push(Op::Attach {
+                slot,
+                target: c(&path)?,
+            });
         }
         for dir in &sandbox.directories {
             let dir = normalize(dir);
@@ -156,8 +210,12 @@ impl Plan {
 }
 
 fn c(path: impl AsRef<Path>) -> io::Result<CString> {
-    CString::new(path.as_ref().as_os_str().as_bytes())
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, format!("`{}` contains a NUL byte", path.as_ref().display())))
+    CString::new(path.as_ref().as_os_str().as_bytes()).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("`{}` contains a NUL byte", path.as_ref().display()),
+        )
+    })
 }
 
 /// `path` made absolute, without `.` and `..`; symlinks are kept.
@@ -188,7 +246,9 @@ fn dedup(paths: impl Iterator<Item = PathBuf>) -> Vec<PathBuf> {
 
 /// The directories strictly below `root`, down to and including `to`.
 fn between(root: &Path, to: &Path) -> Vec<PathBuf> {
-    let Ok(rest) = to.strip_prefix(root) else { return Vec::new() };
+    let Ok(rest) = to.strip_prefix(root) else {
+        return Vec::new();
+    };
     let mut dir = root.to_path_buf();
     rest.components()
         .map(|component| {
@@ -205,7 +265,10 @@ mod tests {
     #[test]
     fn paths_are_normalized_and_split() {
         assert_eq!(normalize(Path::new("/a/./b/../c")), PathBuf::from("/a/c"));
-        assert_eq!(between(Path::new("/home"), Path::new("/home/me/.cargo")), [PathBuf::from("/home/me"), PathBuf::from("/home/me/.cargo")]);
+        assert_eq!(
+            between(Path::new("/home"), Path::new("/home/me/.cargo")),
+            [PathBuf::from("/home/me"), PathBuf::from("/home/me/.cargo")]
+        );
         assert!(between(Path::new("/home"), Path::new("/home")).is_empty());
         assert!(between(Path::new("/home"), Path::new("/usr")).is_empty());
     }

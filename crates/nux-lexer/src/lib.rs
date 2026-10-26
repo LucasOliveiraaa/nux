@@ -1,7 +1,7 @@
 mod cache;
-mod tokens;
 pub mod diagnostic;
 pub mod source;
+mod tokens;
 
 pub use diagnostic::{Diagnostic, render_diagnostic};
 pub use source::{BytePos, Location, SourceArena, SourceFile, SourceId, Span, SpanError};
@@ -134,8 +134,7 @@ impl Lexer {
                     }) {
                         idx += 1;
                     }
-                    let Some(open) = raw.get(idx).filter(|t| t.kind == TokenKind::OBrace)
-                    else {
+                    let Some(open) = raw.get(idx).filter(|t| t.kind == TokenKind::OBrace) else {
                         continue;
                     };
                     let open = open.range.clone();
@@ -279,7 +278,9 @@ mod tests {
         use TokenKind::*;
         assert_eq!(
             kinds("program bash let if else while return true false programs bashful returned"),
-            vec![Program, Bash, Let, If, Else, While, Return, True, False, Ident, Ident, Ident, Eof]
+            vec![
+                Program, Bash, Let, If, Else, While, Return, True, False, Ident, Ident, Ident, Eof
+            ]
         );
     }
 
@@ -303,7 +304,10 @@ mod tests {
         // A block comment ending inside what would have been a string token.
         assert_eq!(contents("/* \" */ x \"y\""), vec!["x", "\"y\"", ""]);
         // Comment markers inside strings are text.
-        assert_eq!(contents(r#""https://x" "/* no */""#), vec![r#""https://x""#, r#""/* no */""#, ""]);
+        assert_eq!(
+            contents(r#""https://x" "/* no */""#),
+            vec![r#""https://x""#, r#""/* no */""#, ""]
+        );
     }
 
     #[test]
@@ -311,7 +315,10 @@ mod tests {
         use TokenKind::*;
         // `--` used to start a comment, silently dropping the rest of the line.
         assert_eq!(kinds("a--b"), vec![Ident, Minus, Minus, Ident, Eof]);
-        assert_eq!(kinds("f()-- 1;"), vec![Ident, OParen, CParen, Minus, Minus, Num, Semi, Eof]);
+        assert_eq!(
+            kinds("f()-- 1;"),
+            vec![Ident, OParen, CParen, Minus, Minus, Num, Semi, Eof]
+        );
     }
 
     #[test]

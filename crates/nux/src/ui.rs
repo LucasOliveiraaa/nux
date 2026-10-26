@@ -25,7 +25,14 @@ impl Write for Stdout {
 
 /// The `Nux v0.1.0` banner every command starts with.
 pub fn write_header(out: &mut impl Write, term: Term) -> std::io::Result<()> {
-    writeln!(out, "{}\n", term.paint(Style::Emphasis, format!("Nux v{}", env!("CARGO_PKG_VERSION"))))
+    writeln!(
+        out,
+        "{}\n",
+        term.paint(
+            Style::Emphasis,
+            format!("Nux v{}", env!("CARGO_PKG_VERSION"))
+        )
+    )
 }
 
 /// Asks `Continue? [Y/n]`; an empty answer means yes.
@@ -35,9 +42,13 @@ pub fn confirm(out: &mut impl Write, input: &mut impl BufRead) -> Result<bool, S
         write!(out, "\nContinue? [Y/n] ").map_err(w)?;
         out.flush().map_err(w)?;
         let mut answer = String::new();
-        let read = input.read_line(&mut answer).map_err(|e| format!("cannot read the answer: {e}"))?;
+        let read = input
+            .read_line(&mut answer)
+            .map_err(|e| format!("cannot read the answer: {e}"))?;
         if read == 0 {
-            return Err("no answer to the confirmation prompt; pass `--yes` to sync without asking".into());
+            return Err(
+                "no answer to the confirmation prompt; pass `--yes` to sync without asking".into(),
+            );
         }
         match answer.trim().to_ascii_lowercase().as_str() {
             "" | "y" | "yes" => return Ok(true),
@@ -49,13 +60,24 @@ pub fn confirm(out: &mut impl Write, input: &mut impl BufRead) -> Result<bool, S
 
 /// `n thing` or `n things`.
 pub fn count(n: usize, thing: &str) -> String {
-    if n == 1 { format!("{n} {thing}") } else { format!("{n} {thing}s") }
+    if n == 1 {
+        format!("{n} {thing}")
+    } else {
+        format!("{n} {thing}s")
+    }
 }
 
 /// Writes `name version` rows with aligned versions.
-pub fn write_packages<'a>(out: &mut impl Write, packages: impl IntoIterator<Item = (&'a str, &'a str)>) -> std::io::Result<()> {
+pub fn write_packages<'a>(
+    out: &mut impl Write,
+    packages: impl IntoIterator<Item = (&'a str, &'a str)>,
+) -> std::io::Result<()> {
     let packages: Vec<_> = packages.into_iter().collect();
-    let width = packages.iter().map(|(name, _)| name.chars().count()).max().unwrap_or(0);
+    let width = packages
+        .iter()
+        .map(|(name, _)| name.chars().count())
+        .max()
+        .unwrap_or(0);
     for (name, version) in packages {
         writeln!(out, "  {name:<width$} {version}")?;
     }
@@ -63,13 +85,30 @@ pub fn write_packages<'a>(out: &mut impl Write, packages: impl IntoIterator<Item
 }
 
 /// Lists what `clean` or `purge` will remove, with sizes and a total.
-pub fn write_removals(out: &mut impl Write, items: &[CleanItem], workspace: &Workspace) -> std::io::Result<()> {
+pub fn write_removals(
+    out: &mut impl Write,
+    items: &[CleanItem],
+    workspace: &Workspace,
+) -> std::io::Result<()> {
     let describe = |item: &CleanItem| match &item.package {
         Some((name, version)) => format!("{name} {version}"),
-        None => item.path.strip_prefix(workspace.home()).unwrap_or(&item.path).display().to_string(),
+        None => item
+            .path
+            .strip_prefix(workspace.home())
+            .unwrap_or(&item.path)
+            .display()
+            .to_string(),
     };
-    let kind_width = items.iter().map(|i| i.kind.to_string().len()).max().unwrap_or(0);
-    let what_width = items.iter().map(|i| describe(i).chars().count()).max().unwrap_or(0);
+    let kind_width = items
+        .iter()
+        .map(|i| i.kind.to_string().len())
+        .max()
+        .unwrap_or(0);
+    let what_width = items
+        .iter()
+        .map(|i| describe(i).chars().count())
+        .max()
+        .unwrap_or(0);
     writeln!(out, "The following will be removed:")?;
     for item in items {
         writeln!(
@@ -81,7 +120,12 @@ pub fn write_removals(out: &mut impl Write, items: &[CleanItem], workspace: &Wor
         )?;
     }
     let total: u64 = items.iter().map(|i| i.bytes).sum();
-    writeln!(out, "\n{}, {}.", count(items.len(), "item"), nux_log::size(total as f64))
+    writeln!(
+        out,
+        "\n{}, {}.",
+        count(items.len(), "item"),
+        nux_log::size(total as f64)
+    )
 }
 
 pub struct SyncReporter<W: Write + Send> {
@@ -96,10 +140,19 @@ pub struct SyncReporter<W: Write + Send> {
 }
 
 impl<W: Write + Send> SyncReporter<W> {
-    pub fn new<'a>(term: Term, names: impl IntoIterator<Item = &'a str>, downloads: W, builds: W) -> Self {
+    pub fn new<'a>(
+        term: Term,
+        names: impl IntoIterator<Item = &'a str>,
+        downloads: W,
+        builds: W,
+    ) -> Self {
         Self {
             term,
-            width: names.into_iter().map(|n| n.chars().count()).max().unwrap_or(0),
+            width: names
+                .into_iter()
+                .map(|n| n.chars().count())
+                .max()
+                .unwrap_or(0),
             downloads: MultiProgress::new(downloads, term.animate),
             rows: Mutex::new(HashMap::new()),
             builds: MultiProgress::new(builds, term.animate),
@@ -108,15 +161,28 @@ impl<W: Write + Send> SyncReporter<W> {
     }
 
     fn download_label(&self, step: &Step) -> String {
-        format!("  {} {:<w$}", self.term.paint(Style::Progress, "Downloading"), step.package.name, w = self.width)
+        format!(
+            "  {} {:<w$}",
+            self.term.paint(Style::Progress, "Downloading"),
+            step.package.name,
+            w = self.width
+        )
     }
 
     fn download_row(&self, step: &Step, progress: Progress, done: bool) -> String {
         let fraction = progress.fraction.unwrap_or(if done { 1.0 } else { 0.0 });
         let fraction = if done { 1.0 } else { fraction };
         let bar = nux_log::bar(fraction, BAR_WIDTH);
-        let bar = if done { self.term.paint(Style::Success, bar) } else { bar };
-        let mut row = format!("{} {bar} {:>3.0}%", self.download_label(step), fraction * 100.0);
+        let bar = if done {
+            self.term.paint(Style::Success, bar)
+        } else {
+            bar
+        };
+        let mut row = format!(
+            "{} {bar} {:>3.0}%",
+            self.download_label(step),
+            fraction * 100.0
+        );
         if let Some(rate) = progress.bytes_per_second.filter(|r| *r > 0.0) {
             row.push(' ');
             row.push_str(&nux_log::rate(rate));
@@ -126,7 +192,11 @@ impl<W: Write + Send> SyncReporter<W> {
 
     fn build_label(&self, step: &Step) -> String {
         let name = format!("{}...", step.package.name);
-        format!("  {} {name:<w$}", self.term.paint(Style::Progress, "Building"), w = self.width + 3)
+        format!(
+            "  {} {name:<w$}",
+            self.term.paint(Style::Progress, "Building"),
+            w = self.width + 3
+        )
     }
 }
 
@@ -135,43 +205,79 @@ impl<W: Write + Send> Reporter for SyncReporter<W> {
         let row = self.downloads.add(String::new());
         self.downloads.finish(
             row,
-            format!("{} {}", self.download_label(step), self.term.paint(Style::Dim, "Already downloaded")),
+            format!(
+                "{} {}",
+                self.download_label(step),
+                self.term.paint(Style::Dim, "Already downloaded")
+            ),
         );
     }
 
     fn download_cached(&self, step: &Step) {
         let rows = self.rows.lock().unwrap();
-        let Some(&(row, _)) = rows.get(&step.package.id) else { return };
-        self.downloads.finish(row, format!("{} {}", self.download_label(step), self.term.paint(Style::Dim, "From the cache")));
+        let Some(&(row, _)) = rows.get(&step.package.id) else {
+            return;
+        };
+        self.downloads.finish(
+            row,
+            format!(
+                "{} {}",
+                self.download_label(step),
+                self.term.paint(Style::Dim, "From the cache")
+            ),
+        );
     }
 
     fn download_queued(&self, step: &Step) {
         let progress = Progress::default();
         let row = self.downloads.add(self.download_row(step, progress, false));
-        self.rows.lock().unwrap().insert(step.package.id, (row, progress));
+        self.rows
+            .lock()
+            .unwrap()
+            .insert(step.package.id, (row, progress));
     }
 
     fn download_progress(&self, step: &Step, progress: Progress) {
         let mut rows = self.rows.lock().unwrap();
-        let Some((row, last)) = rows.get_mut(&step.package.id) else { return };
+        let Some((row, last)) = rows.get_mut(&step.package.id) else {
+            return;
+        };
         *last = progress;
-        self.downloads.update(*row, self.download_row(step, progress, false));
+        self.downloads
+            .update(*row, self.download_row(step, progress, false));
     }
 
     fn download_finished(&self, step: &Step, result: Result<(), &BuildError>) {
         let rows = self.rows.lock().unwrap();
-        let Some(&(row, progress)) = rows.get(&step.package.id) else { return };
+        let Some(&(row, progress)) = rows.get(&step.package.id) else {
+            return;
+        };
         let text = match result {
             Ok(()) => self.download_row(step, progress, true),
-            Err(_) => format!("{} {}", self.download_label(step), self.term.paint(Style::Error, "Failed")),
+            Err(_) => format!(
+                "{} {}",
+                self.download_label(step),
+                self.term.paint(Style::Error, "Failed")
+            ),
         };
         self.downloads.finish(row, text);
     }
 
     fn build_skipped(&self, step: &Step) {
-        let status = if step.host().is_some() { "Provided by the host" } else { "Already built" };
+        let status = if step.host().is_some() {
+            "Provided by the host"
+        } else {
+            "Already built"
+        };
         let row = self.builds.add(String::new());
-        self.builds.finish(row, format!("{} {}", self.build_label(step), self.term.paint(Style::Dim, status)));
+        self.builds.finish(
+            row,
+            format!(
+                "{} {}",
+                self.build_label(step),
+                self.term.paint(Style::Dim, status)
+            ),
+        );
     }
 
     fn build_started(&self, step: &Step) {
@@ -180,12 +286,15 @@ impl<W: Write + Send> Reporter for SyncReporter<W> {
     }
 
     fn build_finished(&self, step: &Step, result: Result<(), &BuildError>) {
-        let Some(row) = self.build_rows.lock().unwrap().remove(&step.package.id) else { return };
+        let Some(row) = self.build_rows.lock().unwrap().remove(&step.package.id) else {
+            return;
+        };
         let status = match result {
             Ok(()) => self.term.paint(Style::Success, "Done!"),
             Err(_) => self.term.paint(Style::Error, "Failed"),
         };
-        self.builds.finish(row, format!("{} {status}", self.build_label(step)));
+        self.builds
+            .finish(row, format!("{} {status}", self.build_label(step)));
     }
 }
 

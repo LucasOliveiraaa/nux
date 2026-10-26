@@ -90,9 +90,15 @@ impl Workspace {
 
         for (name, version) in self.version_dirs()? {
             let paths = self.package(&name, &version);
-            let installed = Metadata::read(&paths.metadata).installed.is_some() && paths.install.is_dir();
+            let installed =
+                Metadata::read(&paths.metadata).installed.is_some() && paths.install.is_dir();
             let package = Some((name.clone(), version.clone()));
-            let item = |kind, path: PathBuf| CleanItem { kind, bytes: size(&path), path, package: package.clone() };
+            let item = |kind, path: PathBuf| CleanItem {
+                kind,
+                bytes: size(&path),
+                path,
+                package: package.clone(),
+            };
 
             if options.sources && !installed && !active.contains(&paths.root) {
                 items.push(item(CleanKind::UninstalledPackage, paths.root.clone()));
@@ -102,7 +108,10 @@ impl Workspace {
                 (CleanKind::IncompleteDownload, paths.root.join("source.tmp")),
                 (CleanKind::BuildDirectory, paths.build.clone()),
                 (CleanKind::BuildLog, paths.log.clone()),
-                (CleanKind::TemporaryFile, paths.metadata.with_extension("tmp")),
+                (
+                    CleanKind::TemporaryFile,
+                    paths.metadata.with_extension("tmp"),
+                ),
             ] {
                 if path.symlink_metadata().is_ok() {
                     items.push(item(kind, path));
@@ -116,9 +125,15 @@ impl Workspace {
         if options.cache
             && let Ok(entries) = std::fs::read_dir(self.cache_dir())
         {
-            let mut parts: Vec<PathBuf> = entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+            let mut parts: Vec<PathBuf> =
+                entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
             parts.sort();
-            items.extend(parts.into_iter().map(|path| CleanItem { kind: CleanKind::Cache, bytes: size(&path), path, package: None }));
+            items.extend(parts.into_iter().map(|path| CleanItem {
+                kind: CleanKind::Cache,
+                bytes: size(&path),
+                path,
+                package: None,
+            }));
         }
 
         // Links being replaced are written as `bin/.<name>.tmp`.
@@ -158,7 +173,8 @@ impl Workspace {
             remove(&item.path)?;
             freed += item.bytes;
 
-            if let (CleanKind::DownloadedSource, Some((name, version))) = (item.kind, &item.package) {
+            if let (CleanKind::DownloadedSource, Some((name, version))) = (item.kind, &item.package)
+            {
                 let paths = self.package(name, version);
                 let mut metadata = Metadata::read(&paths.metadata);
                 if metadata.source.take().is_some() {
@@ -175,19 +191,40 @@ impl Workspace {
         Ok(freed)
     }
 
-    fn check_removable(&self, item: &CleanItem, active: &HashSet<PathBuf>) -> Result<(), BuildError> {
-        let refuse = |reason: &str| BuildError::Clean { path: item.path.clone(), reason: reason.into() };
+    fn check_removable(
+        &self,
+        item: &CleanItem,
+        active: &HashSet<PathBuf>,
+    ) -> Result<(), BuildError> {
+        let refuse = |reason: &str| BuildError::Clean {
+            path: item.path.clone(),
+            reason: reason.into(),
+        };
         let packages = self.packages_dir();
         let inside = match item.kind {
-            CleanKind::TemporaryFile if item.package.is_none() => item.path.parent() == Some(self.bin_dir().as_path()),
+            CleanKind::TemporaryFile if item.package.is_none() => {
+                item.path.parent() == Some(self.bin_dir().as_path())
+            }
             CleanKind::Cache => item.path.parent() == Some(self.cache_dir().as_path()),
-            CleanKind::UninstalledPackage => item.path.parent().and_then(Path::parent) == Some(packages.as_path()),
-            _ => item.path.parent().and_then(Path::parent).and_then(Path::parent) == Some(packages.as_path()),
+            CleanKind::UninstalledPackage => {
+                item.path.parent().and_then(Path::parent) == Some(packages.as_path())
+            }
+            _ => {
+                item.path
+                    .parent()
+                    .and_then(Path::parent)
+                    .and_then(Path::parent)
+                    == Some(packages.as_path())
+            }
         };
         if !inside {
             return Err(refuse("it is not part of the Nux workspace layout"));
         }
-        if item.path.file_name().is_some_and(|n| n == "install" || n == "package.json") {
+        if item
+            .path
+            .file_name()
+            .is_some_and(|n| n == "install" || n == "package.json")
+        {
             return Err(refuse("installations and their records are never cleaned"));
         }
         let version_dir = match item.kind {
@@ -201,7 +238,10 @@ impl Workspace {
             if active.contains(dir) {
                 return Err(refuse("an executable link points into it"));
             }
-            if Metadata::read(&dir.join("package.json")).installed.is_some() {
+            if Metadata::read(&dir.join("package.json"))
+                .installed
+                .is_some()
+            {
                 return Err(refuse("it is installed"));
             }
         }
@@ -215,7 +255,12 @@ impl Workspace {
             let entries = match std::fs::read_dir(dir) {
                 Ok(entries) => entries,
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-                Err(e) => return Err(BuildError::io(format!("cannot read `{}`", dir.display()), e)),
+                Err(e) => {
+                    return Err(BuildError::io(
+                        format!("cannot read `{}`", dir.display()),
+                        e,
+                    ));
+                }
             };
             let mut names: Vec<String> = entries
                 .filter_map(|e| e.ok())
@@ -264,11 +309,18 @@ pub(crate) fn remove(path: &Path) -> Result<(), BuildError> {
 
 /// Total size of the files under `path`, without following symlinks.
 pub(crate) fn size(path: &Path) -> u64 {
-    let Ok(metadata) = path.symlink_metadata() else { return 0 };
+    let Ok(metadata) = path.symlink_metadata() else {
+        return 0;
+    };
     if !metadata.is_dir() {
         return metadata.len();
     }
     std::fs::read_dir(path)
-        .map(|entries| entries.filter_map(|e| e.ok()).map(|e| size(&e.path())).sum())
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .map(|e| size(&e.path()))
+                .sum()
+        })
         .unwrap_or(0)
 }

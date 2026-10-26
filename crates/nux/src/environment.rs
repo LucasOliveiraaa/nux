@@ -126,7 +126,12 @@ impl Environment {
 
     /// Parses `text` as the environment file `path`, then adds the
     /// repositories of `config` after its own.
-    pub fn from_text(text: &str, path: &Path, global: bool, config: &Config) -> Result<Self, String> {
+    pub fn from_text(
+        text: &str,
+        path: &Path,
+        global: bool,
+        config: &Config,
+    ) -> Result<Self, String> {
         let invalid = |e: String| format!("invalid environment `{}`: {e}", path.display());
         let mut env = Self::parse(text, path, global).map_err(invalid)?;
         for repository in &config.repositories {
@@ -135,7 +140,8 @@ impl Environment {
             }
         }
         if env.repositories.is_empty() {
-            let mut message = "no repositories configured; add a `[[repository]]` with a `path`".to_string();
+            let mut message =
+                "no repositories configured; add a `[[repository]]` with a `path`".to_string();
             if let Some(file) = config.file() {
                 message.push_str(&format!(", here or in `{}`", file.display()));
             }
@@ -150,14 +156,21 @@ impl Environment {
     }
 
     fn parse(text: &str, path: &Path, global: bool) -> Result<Self, String> {
-        let mut table: Table = text.parse().map_err(|e: toml::de::Error| e.message().to_string())?;
+        let mut table: Table = text
+            .parse()
+            .map_err(|e: toml::de::Error| e.message().to_string())?;
         let root = path.parent().unwrap_or(Path::new(""));
 
         let mut environment = take_table(&mut table, "environment")?;
         let name = match environment.remove("name") {
             Some(Value::String(name)) if !name.trim().is_empty() => name,
             Some(Value::String(_)) => return Err("`environment.name` must not be empty".into()),
-            Some(other) => return Err(format!("`environment.name` must be a string, found {}", other.type_str())),
+            Some(other) => {
+                return Err(format!(
+                    "`environment.name` must be a string, found {}",
+                    other.type_str()
+                ));
+            }
             None if global => "global".into(),
             None => default_name(root),
         };
@@ -169,7 +182,10 @@ impl Environment {
             .into_iter()
             .map(|(name, requirement)| match requirement {
                 Value::String(requirement) => Ok(Request::new(name, requirement)),
-                other => Err(format!("the version of `{name}` must be a string, found {}", other.type_str())),
+                other => Err(format!(
+                    "the version of `{name}` must be a string, found {}",
+                    other.type_str()
+                )),
             })
             .collect::<Result<_, _>>()?;
 
@@ -187,7 +203,9 @@ impl Environment {
 /// `text` (an environment file) with `requests` set in `[packages]`.
 /// Comments and layout are kept.
 pub fn with_packages(text: &str, requests: &[Request]) -> Result<String, String> {
-    let mut document: toml_edit::DocumentMut = text.parse().map_err(|e: toml_edit::TomlError| e.message().to_string())?;
+    let mut document: toml_edit::DocumentMut = text
+        .parse()
+        .map_err(|e: toml_edit::TomlError| e.message().to_string())?;
     let packages = document
         .entry("packages")
         .or_insert(toml_edit::table())
@@ -206,8 +224,13 @@ pub fn with_packages(text: &str, requests: &[Request]) -> Result<String, String>
 
 /// `text` (an environment file) without `names` in `[packages]`.
 pub fn without_packages(text: &str, names: &[String]) -> Result<String, String> {
-    let mut document: toml_edit::DocumentMut = text.parse().map_err(|e: toml_edit::TomlError| e.message().to_string())?;
-    if let Some(packages) = document.get_mut("packages").and_then(|p| p.as_table_like_mut()) {
+    let mut document: toml_edit::DocumentMut = text
+        .parse()
+        .map_err(|e: toml_edit::TomlError| e.message().to_string())?;
+    if let Some(packages) = document
+        .get_mut("packages")
+        .and_then(|p| p.as_table_like_mut())
+    {
         for name in names {
             packages.remove(name);
         }
@@ -226,14 +249,20 @@ pub fn take_repositories(table: &mut Table, root: &Path) -> Result<Vec<PathBuf>,
                     let path = match repository.remove("path") {
                         Some(Value::String(dir)) => expand(&dir, root),
                         Some(other) => {
-                            return Err(format!("`repository.path` must be a string, found {}", other.type_str()));
+                            return Err(format!(
+                                "`repository.path` must be a string, found {}",
+                                other.type_str()
+                            ));
                         }
                         None => return Err("every `[[repository]]` needs a `path`".into()),
                     };
                     no_unknown_keys(&repository, "repository.")?;
                     Ok(path)
                 }
-                other => Err(format!("`repository` entries must be tables, found {}", other.type_str())),
+                other => Err(format!(
+                    "`repository` entries must be tables, found {}",
+                    other.type_str()
+                )),
             })
             .collect(),
         Some(other) => Err(format!(
@@ -245,8 +274,13 @@ pub fn take_repositories(table: &mut Table, root: &Path) -> Result<Vec<PathBuf>,
 
 /// `path` relative to `root`; a leading `~/` stands for `$HOME`.
 pub fn expand(path: &str, root: &Path) -> PathBuf {
-    let home = std::env::var_os("HOME").filter(|h| !h.is_empty()).map(PathBuf::from);
-    match (path.strip_prefix("~/").or((path == "~").then_some("")), home) {
+    let home = std::env::var_os("HOME")
+        .filter(|h| !h.is_empty())
+        .map(PathBuf::from);
+    match (
+        path.strip_prefix("~/").or((path == "~").then_some("")),
+        home,
+    ) {
         (Some(rest), Some(home)) => home.join(rest),
         _ => root.join(path),
     }
@@ -256,7 +290,10 @@ pub fn take_table(table: &mut Table, key: &str) -> Result<Table, String> {
     match table.remove(key) {
         None => Ok(Table::new()),
         Some(Value::Table(inner)) => Ok(inner),
-        Some(other) => Err(format!("`{key}` must be a table, found {}", other.type_str())),
+        Some(other) => Err(format!(
+            "`{key}` must be a table, found {}",
+            other.type_str()
+        )),
     }
 }
 
@@ -269,7 +306,11 @@ pub fn no_unknown_keys(table: &Table, prefix: &str) -> Result<(), String> {
 
 /// The name of the directory holding the environment file.
 fn default_name(root: &Path) -> String {
-    let dir = if root.as_os_str().is_empty() { std::env::current_dir().ok() } else { std::fs::canonicalize(root).ok() };
+    let dir = if root.as_os_str().is_empty() {
+        std::env::current_dir().ok()
+    } else {
+        std::fs::canonicalize(root).ok()
+    };
     dir.as_deref()
         .and_then(Path::file_name)
         .map(|n| n.to_string_lossy().into_owned())
@@ -281,7 +322,16 @@ mod tests {
     use super::*;
 
     fn parse(text: &str) -> Result<Environment, String> {
-        Environment::from_text(text, Path::new("project/Nux.toml"), false, &Config::default()).map_err(|e| e.trim_start_matches("invalid environment `project/Nux.toml`: ").to_string())
+        Environment::from_text(
+            text,
+            Path::new("project/Nux.toml"),
+            false,
+            &Config::default(),
+        )
+        .map_err(|e| {
+            e.trim_start_matches("invalid environment `project/Nux.toml`: ")
+                .to_string()
+        })
     }
 
     #[test]
@@ -301,24 +351,63 @@ mod tests {
         )
         .unwrap();
         assert_eq!(env.name, "school");
-        assert_eq!(env.repositories, [PathBuf::from("project/local"), PathBuf::from("/abs")]);
-        assert_eq!(env.packages, [Request::new("cmake", ">=4, <5"), Request::new("gcc", "latest")]);
+        assert_eq!(
+            env.repositories,
+            [PathBuf::from("project/local"), PathBuf::from("/abs")]
+        );
+        assert_eq!(
+            env.packages,
+            [
+                Request::new("cmake", ">=4, <5"),
+                Request::new("gcc", "latest")
+            ]
+        );
     }
 
     #[test]
     fn rejects_malformed_environments() {
         let repo = "\n[[repository]]\npath = \"r\"\n";
         let err = |text: &str| parse(text).unwrap_err();
-        assert_eq!(err(""), "no repositories configured; add a `[[repository]]` with a `path`");
-        assert_eq!(err("[[repository]]\nurl = \"x\""), "every `[[repository]]` needs a `path`");
-        assert_eq!(err("[[repository]]\npath = 1"), "`repository.path` must be a string, found integer");
-        assert_eq!(err("[[repository]]\npath = \"r\"\nbranch = \"x\""), "unknown key `repository.branch`");
-        assert_eq!(err("[repository]\npath = \"r\""), "`repository` must be an array of tables (`[[repository]]`), found table");
-        assert_eq!(err(&format!("[packages]\ngcc = 12{repo}")), "the version of `gcc` must be a string, found integer");
-        assert_eq!(err(&format!("packages = 1{repo}")), "`packages` must be a table, found integer");
-        assert_eq!(err(&format!("[environment]\nname = \"\"{repo}")), "`environment.name` must not be empty");
-        assert_eq!(err(&format!("[environment]\nnam = \"x\"{repo}")), "unknown key `environment.nam`");
-        assert_eq!(err(&format!("pakages = {{}}{repo}")), "unknown key `pakages`");
+        assert_eq!(
+            err(""),
+            "no repositories configured; add a `[[repository]]` with a `path`"
+        );
+        assert_eq!(
+            err("[[repository]]\nurl = \"x\""),
+            "every `[[repository]]` needs a `path`"
+        );
+        assert_eq!(
+            err("[[repository]]\npath = 1"),
+            "`repository.path` must be a string, found integer"
+        );
+        assert_eq!(
+            err("[[repository]]\npath = \"r\"\nbranch = \"x\""),
+            "unknown key `repository.branch`"
+        );
+        assert_eq!(
+            err("[repository]\npath = \"r\""),
+            "`repository` must be an array of tables (`[[repository]]`), found table"
+        );
+        assert_eq!(
+            err(&format!("[packages]\ngcc = 12{repo}")),
+            "the version of `gcc` must be a string, found integer"
+        );
+        assert_eq!(
+            err(&format!("packages = 1{repo}")),
+            "`packages` must be a table, found integer"
+        );
+        assert_eq!(
+            err(&format!("[environment]\nname = \"\"{repo}")),
+            "`environment.name` must not be empty"
+        );
+        assert_eq!(
+            err(&format!("[environment]\nnam = \"x\"{repo}")),
+            "unknown key `environment.nam`"
+        );
+        assert_eq!(
+            err(&format!("pakages = {{}}{repo}")),
+            "unknown key `pakages`"
+        );
         assert!(parse("[packages\n").is_err());
     }
 
@@ -327,6 +416,9 @@ mod tests {
         assert_eq!(Environment::locate(None), PathBuf::from("Nux.toml"));
         let dir = std::env::temp_dir();
         assert_eq!(Environment::locate(Some(&dir)), dir.join("Nux.toml"));
-        assert_eq!(Environment::locate(Some(Path::new("dev.toml"))), PathBuf::from("dev.toml"));
+        assert_eq!(
+            Environment::locate(Some(Path::new("dev.toml"))),
+            PathBuf::from("dev.toml")
+        );
     }
 }

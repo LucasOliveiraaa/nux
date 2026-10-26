@@ -31,14 +31,29 @@ pub struct Statement {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum StatementKind {
-    Let { name: Ident, value: Expr },
-    Assign { name: Ident, value: Expr },
+    Let {
+        name: Ident,
+        value: Expr,
+    },
+    Assign {
+        name: Ident,
+        value: Expr,
+    },
     /// `else if` is represented as an else block containing a single `If`
     /// statement; that block's span is the nested statement's span.
-    If { condition: Expr, then_branch: Block, else_branch: Option<Block> },
-    While { condition: Expr, body: Block },
+    If {
+        condition: Expr,
+        then_branch: Block,
+        else_branch: Option<Block>,
+    },
+    While {
+        condition: Expr,
+        body: Block,
+    },
     /// The commands inside a `bash { ... }` block; the span includes the braces.
-    Bash { commands: Vec<String> },
+    Bash {
+        commands: Vec<String>,
+    },
     /// `return;`: stops evaluating the program.
     Return,
     Expr(Expr),
@@ -107,12 +122,25 @@ impl FunctionArg {
 pub enum ExprKind {
     Literal(Literal),
     Variable(String),
-    MemberAccess { object: Box<Expr>, member: Ident },
+    MemberAccess {
+        object: Box<Expr>,
+        member: Ident,
+    },
     /// The span of the call expression includes the parentheses.
-    FunctionCall { callee: Ident, args: Vec<FunctionArg> },
+    FunctionCall {
+        callee: Ident,
+        args: Vec<FunctionArg>,
+    },
 
-    BinaryOp { left: Box<Expr>, op: BinaryOperator, right: Box<Expr> },
-    UnaryOp { op: UnaryOperator, expr: Box<Expr> },
+    BinaryOp {
+        left: Box<Expr>,
+        op: BinaryOperator,
+        right: Box<Expr>,
+    },
+    UnaryOp {
+        op: UnaryOperator,
+        expr: Box<Expr>,
+    },
     /// A parenthesized expression; the span includes the parentheses.
     Group(Box<Expr>),
     /// `[a, b, c]`; the span includes the brackets.

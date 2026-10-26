@@ -48,9 +48,11 @@ fn join(begin: Span, end: Span) -> Span {
 /// How a token kind is named in "expected ..." messages.
 fn describe_kind(kind: TokenKind) -> String {
     match kind {
-        TokenKind::Ident | TokenKind::Str | TokenKind::Num | TokenKind::BashBody | TokenKind::Eof => {
-            kind.to_string()
-        }
+        TokenKind::Ident
+        | TokenKind::Str
+        | TokenKind::Num
+        | TokenKind::BashBody
+        | TokenKind::Eof => kind.to_string(),
         _ => format!("`{kind}`"),
     }
 }
@@ -271,7 +273,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Splits the raw text inside a `bash { ... }` block into lines, trimming whitespace and ignoring empty lines.
-    /// 
+    ///
     /// This accounts for multi-line commands in this form:
     /// foo \
     ///     bar
@@ -316,7 +318,10 @@ impl<'a> Parser<'a> {
         if !self.is_kind(TokenKind::Semi) {
             // Recipes have no functions, so there is nothing to return a value to.
             return Err(ParseError::new(
-                format!("expected `;` after `return` (it takes no value), found {}", describe_token(self.peek())),
+                format!(
+                    "expected `;` after `return` (it takes no value), found {}",
+                    describe_token(self.peek())
+                ),
                 self.peek().span,
             ));
         }
@@ -582,7 +587,10 @@ mod tests {
         (arena, id)
     }
 
-    fn try_parse(arena: &SourceArena, id: SourceId) -> std::result::Result<ast::Program, ParseError> {
+    fn try_parse(
+        arena: &SourceArena,
+        id: SourceId,
+    ) -> std::result::Result<ast::Program, ParseError> {
         let tokens = lexer().lex(arena.get(id).unwrap()).unwrap();
         parse(&tokens)
     }
@@ -639,7 +647,11 @@ mod tests {
                 within(stmt.span, name.span);
                 expr(value);
             }
-            StatementKind::If { condition, then_branch, else_branch } => {
+            StatementKind::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 expr(condition);
                 within(stmt.span, then_branch.span);
                 check_block(then_branch);
@@ -695,8 +707,14 @@ mod tests {
 
     #[test]
     fn statement_spans_include_terminators() {
-        let (arena, program) = parse_body("let x = 1 + 2; x = 3; f(a, b = 2); while x { } if a { } else if b { } else { }");
-        let spans: Vec<_> = program.statements.iter().map(|s| text(&arena, s.span)).collect();
+        let (arena, program) = parse_body(
+            "let x = 1 + 2; x = 3; f(a, b = 2); while x { } if a { } else if b { } else { }",
+        );
+        let spans: Vec<_> = program
+            .statements
+            .iter()
+            .map(|s| text(&arena, s.span))
+            .collect();
         assert_eq!(
             spans,
             [
@@ -707,15 +725,26 @@ mod tests {
                 "if a { } else if b { } else { }",
             ]
         );
-        assert_eq!(text(&arena, program.span), format!("program p {{ {} }}", spans.join(" ")));
+        assert_eq!(
+            text(&arena, program.span),
+            format!("program p {{ {} }}", spans.join(" "))
+        );
 
-        let StatementKind::If { then_branch, else_branch, .. } = &program.statements[4].kind else {
+        let StatementKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } = &program.statements[4].kind
+        else {
             panic!()
         };
         assert_eq!(text(&arena, then_branch.span), "{ }");
         let else_if = else_branch.as_ref().unwrap();
         assert_eq!(text(&arena, else_if.span), "if b { } else { }");
-        assert!(matches!(else_if.statements[0].kind, StatementKind::If { .. }));
+        assert!(matches!(
+            else_if.statements[0].kind,
+            StatementKind::If { .. }
+        ));
     }
 
     #[test]
@@ -723,19 +752,29 @@ mod tests {
         let (arena, program) = parse_body("f(-(a + b) * c, name = nux.arch);");
         let call = only_expr(&program);
         assert_eq!(text(&arena, call.span), "f(-(a + b) * c, name = nux.arch)");
-        let ExprKind::FunctionCall { callee, args } = &call.kind else { panic!() };
+        let ExprKind::FunctionCall { callee, args } = &call.kind else {
+            panic!()
+        };
         assert_eq!(text(&arena, callee.span), "f");
         assert_eq!(text(&arena, args[0].span), "-(a + b) * c");
         assert_eq!(text(&arena, args[1].span), "name = nux.arch");
 
-        let ExprKind::BinaryOp { left, .. } = &args[0].value().kind else { panic!() };
+        let ExprKind::BinaryOp { left, .. } = &args[0].value().kind else {
+            panic!()
+        };
         assert_eq!(text(&arena, left.span), "-(a + b)");
-        let ExprKind::UnaryOp { expr: group, .. } = &left.kind else { panic!() };
+        let ExprKind::UnaryOp { expr: group, .. } = &left.kind else {
+            panic!()
+        };
         assert_eq!(text(&arena, group.span), "(a + b)");
 
-        let ast::FunctionArgKind::Bind { name, value } = &args[1].kind else { panic!() };
+        let ast::FunctionArgKind::Bind { name, value } = &args[1].kind else {
+            panic!()
+        };
         assert_eq!(text(&arena, name.span), "name");
-        let ExprKind::MemberAccess { member, .. } = &value.kind else { panic!() };
+        let ExprKind::MemberAccess { member, .. } = &value.kind else {
+            panic!()
+        };
         assert_eq!(text(&arena, member.span), "arch");
     }
 
@@ -744,7 +783,9 @@ mod tests {
         let (arena, program) = parse_body("a.b.c;");
         let expr = only_expr(&program);
         assert_eq!(text(&arena, expr.span), "a.b.c");
-        let ExprKind::MemberAccess { object, member } = &expr.kind else { panic!() };
+        let ExprKind::MemberAccess { object, member } = &expr.kind else {
+            panic!()
+        };
         assert_eq!(member.name, "c");
         assert!(matches!(object.kind, ExprKind::MemberAccess { .. }));
     }
@@ -753,18 +794,41 @@ mod tests {
     fn precedence_and_associativity() {
         let (_, program) = parse_body("let x = 10 - 4 - 3 % 2 * 1;");
         // ((10 - 4) - ((3 % 2) * 1))
-        let ExprKind::BinaryOp { left, op: Op::Subtract, right } = &only_expr(&program).kind else {
+        let ExprKind::BinaryOp {
+            left,
+            op: Op::Subtract,
+            right,
+        } = &only_expr(&program).kind
+        else {
             panic!()
         };
-        assert!(matches!(left.kind, ExprKind::BinaryOp { op: Op::Subtract, .. }));
-        let ExprKind::BinaryOp { left: inner, op: Op::Multiply, .. } = &right.kind else { panic!() };
-        assert!(matches!(inner.kind, ExprKind::BinaryOp { op: Op::Modulo, .. }));
+        assert!(matches!(
+            left.kind,
+            ExprKind::BinaryOp {
+                op: Op::Subtract,
+                ..
+            }
+        ));
+        let ExprKind::BinaryOp {
+            left: inner,
+            op: Op::Multiply,
+            ..
+        } = &right.kind
+        else {
+            panic!()
+        };
+        assert!(matches!(
+            inner.kind,
+            ExprKind::BinaryOp { op: Op::Modulo, .. }
+        ));
     }
 
     #[test]
     fn literals() {
         let (_, program) = parse_body(r#"f("a\"b\n\q", true, false, 1.5);"#);
-        let ExprKind::FunctionCall { args, .. } = &only_expr(&program).kind else { panic!() };
+        let ExprKind::FunctionCall { args, .. } = &only_expr(&program).kind else {
+            panic!()
+        };
         let lits: Vec<_> = args
             .iter()
             .map(|a| match &a.value().kind {
@@ -789,7 +853,9 @@ mod tests {
         check_nesting(&program);
         let expr = only_expr(&program);
         assert_eq!(text(&arena, expr.span), r#"["a", 1 + 2, [], [x],]"#);
-        let ExprKind::List(items) = &expr.kind else { panic!("{expr:?}") };
+        let ExprKind::List(items) = &expr.kind else {
+            panic!("{expr:?}")
+        };
         let texts: Vec<_> = items.iter().map(|i| text(&arena, i.span)).collect();
         assert_eq!(texts, [r#""a""#, "1 + 2", "[]", "[x]"]);
 
@@ -805,33 +871,68 @@ mod tests {
         assert!(matches!(program.statements[1].kind, StatementKind::Return));
 
         let (message, range) = parse_err("program p { return 1; }");
-        assert_eq!(message, "expected `;` after `return` (it takes no value), found number `1`");
+        assert_eq!(
+            message,
+            "expected `;` after `return` (it takes no value), found number `1`"
+        );
         assert_eq!(range, 19..20);
     }
 
     #[test]
     fn trailing_comma_in_call() {
         let (_, program) = parse_body("f(1, 2,);");
-        let ExprKind::FunctionCall { args, .. } = &only_expr(&program).kind else { panic!() };
+        let ExprKind::FunctionCall { args, .. } = &only_expr(&program).kind else {
+            panic!()
+        };
         assert_eq!(args.len(), 2);
     }
 
     #[test]
     fn wrong_first_token_is_an_error_not_a_panic() {
         // `expect` used to compute `position - 1` and underflow here.
-        assert_eq!(parse_err("x"), ("expected `program`, found identifier `x`".into(), 0..1));
+        assert_eq!(
+            parse_err("x"),
+            ("expected `program`, found identifier `x`".into(), 0..1)
+        );
     }
 
     #[test]
     fn errors_point_at_offending_token() {
-        assert_eq!(parse_err("program p { let x = 1 }"), ("expected `;`, found `}`".into(), 22..23));
-        assert_eq!(parse_err("program p { let x = 1;"), ("expected `}`, found end of input".into(), 22..22));
-        assert_eq!(parse_err("program p { } extra"), ("expected end of input, found identifier `extra`".into(), 14..19));
-        assert_eq!(parse_err("program p { ; }"), ("expected expression, found `;`".into(), 12..13));
-        assert_eq!(parse_err("program p { a.b(); }"), ("only named functions can be called".into(), 12..15));
-        assert_eq!(parse_err("program p { f(1 2); }"), ("expected `,`, found number `2`".into(), 16..17));
-        assert_eq!(parse_err("program p { let = 1; }"), ("expected identifier, found `=`".into(), 16..17));
-        assert_eq!(parse_err(""), ("expected `program`, found end of input".into(), 0..0));
+        assert_eq!(
+            parse_err("program p { let x = 1 }"),
+            ("expected `;`, found `}`".into(), 22..23)
+        );
+        assert_eq!(
+            parse_err("program p { let x = 1;"),
+            ("expected `}`, found end of input".into(), 22..22)
+        );
+        assert_eq!(
+            parse_err("program p { } extra"),
+            (
+                "expected end of input, found identifier `extra`".into(),
+                14..19
+            )
+        );
+        assert_eq!(
+            parse_err("program p { ; }"),
+            ("expected expression, found `;`".into(), 12..13)
+        );
+        assert_eq!(
+            parse_err("program p { a.b(); }"),
+            ("only named functions can be called".into(), 12..15)
+        );
+        assert_eq!(
+            parse_err("program p { f(1 2); }"),
+            ("expected `,`, found number `2`".into(), 16..17)
+        );
+        assert_eq!(
+            parse_err("program p { let = 1; }"),
+            ("expected identifier, found `=`".into(), 16..17)
+        );
+        assert_eq!(
+            parse_err(""),
+            ("expected `program`, found end of input".into(), 0..0)
+        );
     }
 
     #[test]

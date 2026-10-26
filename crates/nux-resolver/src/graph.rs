@@ -38,8 +38,12 @@ impl VersionGraph {
                     .iter()
                     .map(|dependency| {
                         let (name, requirement, kind) = match dependency {
-                            Dependency::Build { name, version } => (name, version, DependencyKind::Build),
-                            Dependency::Runtime { name, version } => (name, version, DependencyKind::Runtime),
+                            Dependency::Build { name, version } => {
+                                (name, version, DependencyKind::Build)
+                            }
+                            Dependency::Runtime { name, version } => {
+                                (name, version, DependencyKind::Runtime)
+                            }
                         };
                         Edge {
                             name: name.clone(),
@@ -50,7 +54,9 @@ impl VersionGraph {
                     })
                     .collect();
                 // Dependencies come from a `HashSet`; sort for determinism.
-                edges.sort_by(|a, b| (&a.name, &a.requirement, a.kind).cmp(&(&b.name, &b.requirement, b.kind)));
+                edges.sort_by(|a, b| {
+                    (&a.name, &a.requirement, a.kind).cmp(&(&b.name, &b.requirement, b.kind))
+                });
                 Node {
                     name: package.name.clone(),
                     version: version.parsed.clone(),

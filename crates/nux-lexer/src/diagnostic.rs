@@ -182,7 +182,10 @@ mod tests {
 
     #[test]
     fn long_multiline_span_is_elided() {
-        let text = (1..=10).map(|i| format!("l{i}")).collect::<Vec<_>>().join("\n");
+        let text = (1..=10)
+            .map(|i| format!("l{i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
         let (arena, id) = setup(&text);
         let file = arena.get(id).unwrap();
         let out = render_diagnostic(&arena, "long", file.span(0..file.len()).unwrap());

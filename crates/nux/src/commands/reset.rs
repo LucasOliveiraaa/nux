@@ -36,20 +36,35 @@ pub fn run(
     let w = |e: std::io::Error| format!("cannot write output: {e}");
     write_header(out, term).map_err(w)?;
     if !workspace.home().exists() {
-        writeln!(out, "No Nux workspace found at `{}`; nothing to reset.", workspace.home().display()).map_err(w)?;
+        writeln!(
+            out,
+            "No Nux workspace found at `{}`; nothing to reset.",
+            workspace.home().display()
+        )
+        .map_err(w)?;
         return Ok(Outcome::NothingToReset);
     }
     writeln!(out, "Workspace: {}\n", workspace.home().display()).map_err(w)?;
 
     // Nothing may be built or linked while the workspace goes away.
     let _workspace_lock = lock_workspace(workspace, options.wait, out)?;
-    let items = workspace.reset_plan(ResetOptions { keep_cache: options.keep_cache }).map_err(|e| e.to_string())?;
+    let items = workspace
+        .reset_plan(ResetOptions {
+            keep_cache: options.keep_cache,
+        })
+        .map_err(|e| e.to_string())?;
     let kept = workspace.reset_keeps();
     let write_kept = |out: &mut dyn Write| -> std::io::Result<()> {
         if !kept.is_empty() {
             writeln!(out, "\nKept, since Nux did not create them:")?;
             for path in &kept {
-                writeln!(out, "  {}", path.strip_prefix(workspace.home()).unwrap_or(path).display())?;
+                writeln!(
+                    out,
+                    "  {}",
+                    path.strip_prefix(workspace.home())
+                        .unwrap_or(path)
+                        .display()
+                )?;
             }
         }
         Ok(())
@@ -67,7 +82,11 @@ pub fn run(
     )
     .map_err(w)?;
     if options.keep_cache {
-        writeln!(out, "The download cache is kept: sources will not need downloading again.").map_err(w)?;
+        writeln!(
+            out,
+            "The download cache is kept: sources will not need downloading again."
+        )
+        .map_err(w)?;
     }
     write_kept(out).map_err(w)?;
 

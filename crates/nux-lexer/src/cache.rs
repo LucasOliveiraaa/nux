@@ -48,7 +48,11 @@ impl Lexer {
     /// `$NUX_CACHE_DIR`, otherwise `$XDG_CACHE_HOME/nux`, otherwise
     /// `~/.cache/nux`; `None` when none of these variables is set.
     pub fn cache_dir() -> Option<PathBuf> {
-        let var = |name| std::env::var_os(name).filter(|v| !v.is_empty()).map(PathBuf::from);
+        let var = |name| {
+            std::env::var_os(name)
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from)
+        };
         var("NUX_CACHE_DIR")
             .or_else(|| var("XDG_CACHE_HOME").map(|d| d.join("nux")))
             .or_else(|| var("HOME").map(|h| h.join(".cache").join("nux")))
@@ -72,7 +76,9 @@ impl Lexer {
         std::fs::create_dir_all(dir)?;
         let mut dsf = DSecFile::new(path);
         dsf.set("KEY", key());
-        self.engine.to_dsf(&mut dsf, FORMAT).map_err(io::Error::other)?;
+        self.engine
+            .to_dsf(&mut dsf, FORMAT)
+            .map_err(io::Error::other)?;
         let temporary = path.with_extension(format!("{}.tmp", std::process::id()));
         dsf.save_as(&temporary).map_err(io::Error::other)?;
         if let Err(error) = std::fs::rename(&temporary, path) {
@@ -112,7 +118,9 @@ mod tests {
     use super::*;
 
     fn dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("nux-lexer-cache-{}", std::process::id())).join(name);
+        let dir = std::env::temp_dir()
+            .join(format!("nux-lexer-cache-{}", std::process::id()))
+            .join(name);
         let _ = std::fs::remove_dir_all(&dir);
         dir
     }
@@ -151,5 +159,4 @@ mod tests {
         Lexer::cached_in(&dir).unwrap();
         assert!(Lexer::load(&path).is_some());
     }
-
 }

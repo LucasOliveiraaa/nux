@@ -92,7 +92,10 @@ impl Span {
 
     /// An empty span located at `pos`.
     pub fn empty(pos: BytePos) -> Self {
-        Self { begin: pos, end: pos }
+        Self {
+            begin: pos,
+            end: pos,
+        }
     }
 
     pub fn begin(self) -> BytePos {
@@ -278,7 +281,8 @@ impl SourceArena {
     /// Registers in-memory source text under `path`.
     pub fn add(&mut self, path: impl Into<PathBuf>, text: impl Into<String>) -> SourceId {
         let id = SourceId(u32::try_from(self.files.len()).expect("too many source files"));
-        self.files.push(SourceFile::new(id, path.into(), text.into()));
+        self.files
+            .push(SourceFile::new(id, path.into(), text.into()));
         id
     }
 
@@ -337,7 +341,10 @@ mod tests {
         let eof = Span::empty(file.end_pos());
         assert!(eof.is_empty());
         assert_eq!(file.slice(eof), Some(""));
-        assert_eq!(file.location(eof.begin()), Some(Location { line: 2, column: 1 }));
+        assert_eq!(
+            file.location(eof.begin()),
+            Some(Location { line: 2, column: 1 })
+        );
         assert!(file.pos(4).is_none());
     }
 

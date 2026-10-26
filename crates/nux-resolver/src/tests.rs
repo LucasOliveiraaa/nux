@@ -8,14 +8,25 @@ use nux_lexer::{Lexer, SourceArena};
 use super::*;
 
 fn build(name: &str, version: &str) -> Dependency {
-    Dependency::Build { name: name.into(), version: version.into() }
+    Dependency::Build {
+        name: name.into(),
+        version: version.into(),
+    }
 }
 
 fn runtime(name: &str, version: &str) -> Dependency {
-    Dependency::Runtime { name: name.into(), version: version.into() }
+    Dependency::Runtime {
+        name: name.into(),
+        version: version.into(),
+    }
 }
 
-fn add(resolver: &mut Resolver, name: &str, version: &str, dependencies: &[Dependency]) -> PackageVersionId {
+fn add(
+    resolver: &mut Resolver,
+    name: &str,
+    version: &str,
+    dependencies: &[Dependency],
+) -> PackageVersionId {
     let def = VersionDef {
         version: version.into(),
         commands: vec![format!("build {name} {version}")],
@@ -52,7 +63,11 @@ fn versions_compare_by_value() {
     assert!(v("1.10.0") > v("1.9.3"));
     assert!(v("2") > v("1.99"));
     assert!(req("=1.2").matches(&v("1.2.0")));
-    assert_ne!(v("1.2"), v("1.2.0"), "spelling still distinguishes versions");
+    assert_ne!(
+        v("1.2"),
+        v("1.2.0"),
+        "spelling still distinguishes versions"
+    );
     assert!(v("1.0.rc1") < v("1.0.0"));
     assert!(Version::parse("").is_err());
     assert!(Version::parse("1..2").is_err());
@@ -83,7 +98,11 @@ fn requirements_match_versions() {
         ("~1", "2.0", false),
     ];
     for (requirement, version, expected) in cases {
-        assert_eq!(req(requirement).matches(&v(version)), expected, "{requirement} vs {version}");
+        assert_eq!(
+            req(requirement).matches(&v(version)),
+            expected,
+            "{requirement} vs {version}"
+        );
     }
     assert!(VersionReq::parse(">=").is_err());
     assert!(VersionReq::parse(">=1,").is_err());
@@ -111,9 +130,17 @@ fn dependencies_use_version_specific_edges() {
     add(&mut r, "gcc", "12.2", &[]);
     add(&mut r, "git", "2.40", &[]);
     add(&mut r, "cmake", "3.0", &[build("gcc", "^9")]);
-    add(&mut r, "cmake", "4.2.0", &[build("gcc", ">=12"), runtime("git", "latest")]);
+    add(
+        &mut r,
+        "cmake",
+        "4.2.0",
+        &[build("gcc", ">=12"), runtime("git", "latest")],
+    );
 
-    assert_eq!(plan(&r, &[("cmake", "3.0")]).unwrap(), ["gcc@9.1", "cmake@3.0"]);
+    assert_eq!(
+        plan(&r, &[("cmake", "3.0")]).unwrap(),
+        ["gcc@9.1", "cmake@3.0"]
+    );
     assert_eq!(
         plan(&r, &[("cmake", "latest")]).unwrap(),
         ["gcc@12.2", "git@2.40", "cmake@4.2.0"]
@@ -153,7 +180,10 @@ fn transitive_dependencies_exclude_unrelated_versions() {
     add(&mut r, "app", "1", &[build("lib", "^1")]);
     add(&mut r, "unrelated", "1", &[build("base", "3")]);
 
-    assert_eq!(plan(&r, &[("app", "1")]).unwrap(), ["base@2", "lib@1.4", "app@1"]);
+    assert_eq!(
+        plan(&r, &[("app", "1")]).unwrap(),
+        ["base@2", "lib@1.4", "app@1"]
+    );
 }
 
 #[test]
@@ -176,7 +206,12 @@ fn shared_dependencies_appear_once() {
     add(&mut r, "d", "1", &[]);
     add(&mut r, "b", "1", &[build("d", "latest")]);
     add(&mut r, "c", "1", &[build("d", "1"), runtime("d", "^1")]);
-    add(&mut r, "a", "1", &[build("c", "latest"), build("b", "latest")]);
+    add(
+        &mut r,
+        "a",
+        "1",
+        &[build("c", "latest"), build("b", "latest")],
+    );
 
     let order = plan(&r, &[("a", "1"), ("b", "1"), ("a", "latest")]).unwrap();
     assert_eq!(order, ["d@1", "b@1", "c@1", "a@1"]);
@@ -203,7 +238,10 @@ fn order_does_not_depend_on_registration_or_request_order() {
 
     let expected = ["z@1", "x@1", "y@1", "w@1"];
     assert_eq!(plan(&forward, &[("w", "1"), ("x", "1")]).unwrap(), expected);
-    assert_eq!(plan(&backward, &[("x", "1"), ("w", "1")]).unwrap(), expected);
+    assert_eq!(
+        plan(&backward, &[("x", "1"), ("w", "1")]).unwrap(),
+        expected
+    );
 }
 
 #[test]
@@ -218,7 +256,9 @@ fn missing_packages_and_versions_are_reported() {
 
     assert_eq!(
         plan(&r, &[("nope", "latest")]),
-        Err(ResolveError::UnknownPackage { name: "nope".into() })
+        Err(ResolveError::UnknownPackage {
+            name: "nope".into()
+        })
     );
     assert_eq!(
         plan(&r, &[("gcc", "10")]).unwrap_err().to_string(),
@@ -271,7 +311,10 @@ fn duplicate_and_invalid_versions_are_rejected() {
     };
     assert_eq!(
         r.add_version("gcc".into(), def("9.1")),
-        Err(ResolveError::DuplicateVersion { name: "gcc".into(), version: "9.1".into() })
+        Err(ResolveError::DuplicateVersion {
+            name: "gcc".into(),
+            version: "9.1".into()
+        })
     );
     assert!(matches!(
         r.add_version("gcc".into(), def("9 1")),
@@ -286,7 +329,10 @@ fn self_dependency_is_a_cycle() {
     add(&mut r, "a", "1", &[build("a", "1")]);
     assert_eq!(
         plan(&r, &[("a", "1")]),
-        Err(ResolveError::Cycle(vec![("a".into(), "1".into()), ("a".into(), "1".into())]))
+        Err(ResolveError::Cycle(vec![
+            ("a".into(), "1".into()),
+            ("a".into(), "1".into())
+        ]))
     );
 }
 
@@ -321,7 +367,10 @@ fn newer_version_may_depend_on_older_one() {
     add(&mut r, "cc", "1", &[]);
     add(&mut r, "cc", "2", &[build("cc", "1")]);
     add(&mut r, "cc", "3", &[build("cc", "2")]);
-    assert_eq!(plan(&r, &[("cc", "latest")]).unwrap(), ["cc@1", "cc@2", "cc@3"]);
+    assert_eq!(
+        plan(&r, &[("cc", "latest")]).unwrap(),
+        ["cc@1", "cc@2", "cc@3"]
+    );
 }
 
 #[test]
@@ -366,7 +415,8 @@ fn eval(src: &str) -> nux_eval::EvalResult {
 #[test]
 fn resolves_evaluated_definitions() {
     let mut r = Resolver::new();
-    r.add_package(eval(r#"program gcc { version("9.1"); version("12.2"); }"#)).unwrap();
+    r.add_package(eval(r#"program gcc { version("9.1"); version("12.2"); }"#))
+        .unwrap();
     r.add_package(eval(
         r#"program cmake {
             version("3.0.0");
@@ -381,16 +431,24 @@ fn resolves_evaluated_definitions() {
         }"#,
     ))
     .unwrap();
-    r.add_package(eval(r#"program wine { version("9.0"); add_dependency(cmake, "~3.0"); }"#))
-        .unwrap();
+    r.add_package(eval(
+        r#"program wine { version("9.0"); add_dependency(cmake, "~3.0"); }"#,
+    ))
+    .unwrap();
 
     let resolved = r.resolve(&[Request::new("wine", "latest")]).unwrap();
-    let names: Vec<_> = resolved.iter().map(|p| format!("{}@{}", p.name, p.version)).collect();
+    let names: Vec<_> = resolved
+        .iter()
+        .map(|p| format!("{}@{}", p.name, p.version))
+        .collect();
     assert_eq!(names, ["gcc@9.1", "cmake@3.0.0", "wine@9.0"]);
 
     let cmake = &resolved[1];
     assert_eq!(cmake.commands, ["make old"]);
-    assert!(matches!(cmake.source.as_ref().unwrap().kind, SourceKind::Git(_)));
+    assert!(matches!(
+        cmake.source.as_ref().unwrap().kind,
+        SourceKind::Git(_)
+    ));
     assert_eq!(cmake.dependencies[0].version, "9.1");
 }
 
@@ -402,7 +460,10 @@ fn host_provided_versions_are_preferred_when_they_match() {
     // Mark 12.2.0 as provided by the host.
     let (package, _) = r.get(host);
     let index = r.by_name[&package.name];
-    r.packages[index].versions[0].host = Some(nux_eval::HostBinary { name: "gcc".into(), path: "/usr/bin/gcc".into() });
+    r.packages[index].versions[0].host = Some(nux_eval::HostBinary {
+        name: "gcc".into(),
+        path: "/usr/bin/gcc".into(),
+    });
 
     assert_eq!(r.select("gcc", "latest"), Ok(host));
     assert_eq!(r.select("gcc", ">=12"), Ok(host));
@@ -411,7 +472,10 @@ fn host_provided_versions_are_preferred_when_they_match() {
     assert_eq!(r.select("gcc", "14.2.0"), Ok(built));
 
     let resolved = r.resolve(&[Request::new("gcc", "latest")]).unwrap();
-    assert_eq!(resolved[0].host.as_ref().unwrap().path, std::path::Path::new("/usr/bin/gcc"));
+    assert_eq!(
+        resolved[0].host.as_ref().unwrap().path,
+        std::path::Path::new("/usr/bin/gcc")
+    );
 }
 
 #[test]

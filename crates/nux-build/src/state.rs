@@ -107,7 +107,10 @@ impl Metadata {
             return Self::default();
         };
         let string = |v: &Value, key: &str| v.get(key).and_then(Value::as_str).map(str::to_string);
-        let identity = |v: &Value| SourceIdentity { revision: string(v, "revision"), sha256: string(v, "sha256") };
+        let identity = |v: &Value| SourceIdentity {
+            revision: string(v, "revision"),
+            sha256: string(v, "sha256"),
+        };
         Self {
             source: value.get("source").filter(|s| s.is_object()).and_then(|s| {
                 Some(SourceRecord {
@@ -116,13 +119,16 @@ impl Metadata {
                     identity: identity(s),
                 })
             }),
-            installed: value.get("installed").filter(|s| s.is_object()).and_then(|s| {
-                Some(InstallRecord {
-                    fingerprint: string(s, "fingerprint")?,
-                    bin: string(s, "bin"),
-                    identity: identity(s),
-                })
-            }),
+            installed: value
+                .get("installed")
+                .filter(|s| s.is_object())
+                .and_then(|s| {
+                    Some(InstallRecord {
+                        fingerprint: string(s, "fingerprint")?,
+                        bin: string(s, "bin"),
+                        identity: identity(s),
+                    })
+                }),
         }
     }
 
@@ -144,7 +150,8 @@ impl Metadata {
                 "sha256": i.identity.sha256,
             })),
         });
-        let text = serde_json::to_string_pretty(&value).expect("json values always serialize") + "\n";
+        let text =
+            serde_json::to_string_pretty(&value).expect("json values always serialize") + "\n";
         write_atomic(path, text.as_bytes())
     }
 }
@@ -181,8 +188,14 @@ mod tests {
             tag: tag.map(Into::into),
             proxy: proxy.map(Into::into),
         };
-        assert_eq!(source_fingerprint(&source(None, None)), source_fingerprint(&source(None, Some("p"))));
-        assert_ne!(source_fingerprint(&source(None, None)), source_fingerprint(&source(Some("v1"), None)));
+        assert_eq!(
+            source_fingerprint(&source(None, None)),
+            source_fingerprint(&source(None, Some("p")))
+        );
+        assert_ne!(
+            source_fingerprint(&source(None, None)),
+            source_fingerprint(&source(Some("v1"), None))
+        );
     }
 
     #[test]
@@ -193,12 +206,18 @@ mod tests {
             source: Some(SourceRecord {
                 fingerprint: "a".into(),
                 file: Some("x.tar.gz".into()),
-                identity: SourceIdentity { revision: None, sha256: Some("abc".into()) },
+                identity: SourceIdentity {
+                    revision: None,
+                    sha256: Some("abc".into()),
+                },
             }),
             installed: Some(InstallRecord {
                 fingerprint: "b".into(),
                 bin: None,
-                identity: SourceIdentity { revision: Some("deadbeef".into()), sha256: None },
+                identity: SourceIdentity {
+                    revision: Some("deadbeef".into()),
+                    sha256: None,
+                },
             }),
         };
         metadata.write(&path, "pkg", "1.0").unwrap();
@@ -206,7 +225,10 @@ mod tests {
 
         std::fs::write(&path, "{ not json").unwrap();
         assert_eq!(Metadata::read(&path), Metadata::default());
-        assert_eq!(Metadata::read(&dir.join("missing.json")), Metadata::default());
+        assert_eq!(
+            Metadata::read(&dir.join("missing.json")),
+            Metadata::default()
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
@@ -217,7 +239,10 @@ mod identity_tests {
 
     #[test]
     fn identities_satisfy_matching_pins() {
-        let id = |r: Option<&str>, s: Option<&str>| SourceIdentity { revision: r.map(Into::into), sha256: s.map(Into::into) };
+        let id = |r: Option<&str>, s: Option<&str>| SourceIdentity {
+            revision: r.map(Into::into),
+            sha256: s.map(Into::into),
+        };
         assert!(id(Some("a"), None).satisfies(&id(Some("a"), None)));
         assert!(!id(Some("a"), None).satisfies(&id(Some("b"), None)));
         // Unknown on either side is accepted.

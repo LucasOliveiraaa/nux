@@ -40,7 +40,9 @@ where
             Ok(text) => (text, false),
             Err(e) if global && e.kind() == std::io::ErrorKind::NotFound => {
                 if config.repositories.is_empty() {
-                    let file = config.file().expect("the global environment is in the configuration directory");
+                    let file = config
+                        .file()
+                        .expect("the global environment is in the configuration directory");
                     return Err(format!(
                         "cannot create the global environment `{}`: no repositories configured; \
                          add a `[[repository]]` with a `path` to `{}`",
@@ -50,17 +52,28 @@ where
                 }
                 (GLOBAL_TEMPLATE.to_string(), true)
             }
-            Err(e) => return Err(format!("failed to read environment `{}`: {e}", path.display())),
+            Err(e) => {
+                return Err(format!(
+                    "failed to read environment `{}`: {e}",
+                    path.display()
+                ));
+            }
         };
         let current = Environment::from_text(&text, &path, global, config)?;
 
         let mut requests = Vec::new();
         let mut lines = Vec::new();
         for (name, requirement) in &options.packages {
-            let existing = current.packages.iter().find(|r| &r.name == name).map(|r| r.version.as_str());
+            let existing = current
+                .packages
+                .iter()
+                .find(|r| &r.name == name)
+                .map(|r| r.version.as_str());
             match (requirement.as_deref(), existing) {
                 (None, Some(old)) => lines.push(format!("  {name} {old} (already requested)")),
-                (Some(new), Some(old)) if new == old => lines.push(format!("  {name} {old} (already requested)")),
+                (Some(new), Some(old)) if new == old => {
+                    lines.push(format!("  {name} {old} (already requested)"))
+                }
                 (new, old) => {
                     let new = new.unwrap_or("latest");
                     lines.push(match old {
@@ -82,9 +95,19 @@ where
         } else {
             let text = with_packages(&text, &requests)
                 .map_err(|e| format!("cannot edit environment `{}`: {e}", path.display()))?;
-            (Environment::from_text(&text, &path, global, config)?, Some(text))
+            (
+                Environment::from_text(&text, &path, global, config)?,
+                Some(text),
+            )
         };
         let message = format!("{heading}\n{}", lines.join("\n"));
-        Ok((env, Some(Edit { path, text, message })))
+        Ok((
+            env,
+            Some(Edit {
+                path,
+                text,
+                message,
+            }),
+        ))
     })
 }

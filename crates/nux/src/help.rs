@@ -33,7 +33,9 @@ impl Topic {
     ];
 
     pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|topic| topic.page().name == name)
+        Self::ALL
+            .into_iter()
+            .find(|topic| topic.page().name == name)
     }
 
     pub fn name(self) -> &'static str {
@@ -67,9 +69,18 @@ const ENVIRONMENT: Opt = (
         "environment when there is none]",
     ],
 );
-const GLOBAL: Opt = ("-g, --global", &["Use the global environment", "(~/.config/nux/Nux.toml)"]);
+const GLOBAL: Opt = (
+    "-g, --global",
+    &["Use the global environment", "(~/.config/nux/Nux.toml)"],
+);
 const YES: Opt = ("-y, --yes", &["Do not ask for confirmation"]);
-const WAIT: Opt = ("--wait", &["Wait for another nux process using the", "workspace instead of failing"]);
+const WAIT: Opt = (
+    "--wait",
+    &[
+        "Wait for another nux process using the",
+        "workspace instead of failing",
+    ],
+);
 const DRY_RUN: Opt = ("--dry-run", &["Only list what would be removed"]);
 const HELP: Opt = ("-h, --help", &["Print this help"]);
 
@@ -86,7 +97,10 @@ Creates `path` with a Nux.toml named after the directory, requesting
 download, so the environment syncs right away. An existing Nux.toml is
 never overwritten.",
         options: &[HELP],
-        examples: &["nux init", "nux init envs/school && nux sync -e envs/school"],
+        examples: &[
+            "nux init",
+            "nux init envs/school && nux sync -e envs/school",
+        ],
     },
     Page {
         name: "sync",
@@ -101,12 +115,19 @@ or the sources change.",
         options: &[
             ENVIRONMENT,
             GLOBAL,
-            ("--locked", &["Fail instead of creating or changing Nux.lock"]),
+            (
+                "--locked",
+                &["Fail instead of creating or changing Nux.lock"],
+            ),
             YES,
             WAIT,
             HELP,
         ],
-        examples: &["nux sync", "nux sync -e example/hello -y", "nux sync --locked -y   # in CI"],
+        examples: &[
+            "nux sync",
+            "nux sync -e example/hello -y",
+            "nux sync --locked -y   # in CI",
+        ],
     },
     Page {
         name: "status",
@@ -132,7 +153,11 @@ the requirement already there) or `name@requirement`. Nux.toml is only
 written once the sync goes ahead. Outside of an environment, packages go
 to the global one, which is created if needed.",
         options: &[ENVIRONMENT, GLOBAL, YES, WAIT, HELP],
-        examples: &["nux install jq", "nux install ripgrep@^14 \"cmake@>=4, <5\"", "nux install -g lazygit"],
+        examples: &[
+            "nux install jq",
+            "nux install ripgrep@^14 \"cmake@>=4, <5\"",
+            "nux install -g lazygit",
+        ],
     },
     Page {
         name: "remove",
@@ -156,8 +181,20 @@ uses.",
 Removes interrupted downloads, build directories of failed builds, build
 logs and temporary files. Installed packages are never removed.",
         options: &[
-            ("--sources", &["Also remove downloaded sources and versions", "that were never installed"]),
-            ("--cache", &["Also empty the download cache (git mirrors,", "downloaded files, shared build tool caches)"]),
+            (
+                "--sources",
+                &[
+                    "Also remove downloaded sources and versions",
+                    "that were never installed",
+                ],
+            ),
+            (
+                "--cache",
+                &[
+                    "Also empty the download cache (git mirrors,",
+                    "downloaded files, shared build tool caches)",
+                ],
+            ),
             DRY_RUN,
             YES,
             WAIT,
@@ -188,7 +225,13 @@ links Nux created, the environment records and the download cache. Files
 Nux did not create are kept. Environments, their Nux.lock and the
 configuration are not touched.",
         options: &[
-            ("--keep-cache", &["Keep the download cache (git mirrors and", "downloaded files)"]),
+            (
+                "--keep-cache",
+                &[
+                    "Keep the download cache (git mirrors and",
+                    "downloaded files)",
+                ],
+            ),
             DRY_RUN,
             YES,
             WAIT,
@@ -214,7 +257,8 @@ const COLUMN: usize = 32;
 
 /// `nux help`: every command, and how to learn more.
 pub fn general() -> String {
-    let mut text = String::from("nux - build and manage packages from .nux definitions\n\nUsage:\n");
+    let mut text =
+        String::from("nux - build and manage packages from .nux definitions\n\nUsage:\n");
     text.push_str("    nux <command> [options]\n    nux help [command]\n\nCommands:\n");
     for topic in Topic::ALL {
         let page = topic.page();
@@ -222,14 +266,20 @@ pub fn general() -> String {
     }
     text.push_str("\nOptions:\n");
     row(&mut text, HELP.0, HELP.1);
-    text.push_str("\nRun `nux help <command>` or `nux <command> --help` for a command's options.\n");
+    text.push_str(
+        "\nRun `nux help <command>` or `nux <command> --help` for a command's options.\n",
+    );
     text
 }
 
 /// `nux help <command>`.
 pub fn page(topic: Topic) -> String {
     let page = topic.page();
-    let mut text = format!("nux {} - {}\n\nUsage:\n", page.name, lowercase_first(page.summary));
+    let mut text = format!(
+        "nux {} - {}\n\nUsage:\n",
+        page.name,
+        lowercase_first(page.summary)
+    );
     for usage in page.usage {
         let _ = writeln!(text, "    {usage}");
     }
@@ -254,14 +304,21 @@ fn row(text: &mut String, left: &str, lines: &[&str]) {
     let left = format!("    {left}");
     for (index, line) in lines.iter().enumerate() {
         let lead = if index == 0 { left.as_str() } else { "" };
-        let pad = if lead.len() + 2 > COLUMN { 2 } else { COLUMN - lead.len() };
+        let pad = if lead.len() + 2 > COLUMN {
+            2
+        } else {
+            COLUMN - lead.len()
+        };
         let _ = writeln!(text, "{lead}{}{line}", " ".repeat(pad));
     }
 }
 
 fn lowercase_first(text: &str) -> String {
     let mut chars = text.chars();
-    chars.next().map(|c| c.to_lowercase().chain(chars).collect()).unwrap_or_default()
+    chars
+        .next()
+        .map(|c| c.to_lowercase().chain(chars).collect())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -281,9 +338,18 @@ mod tests {
     fn the_general_help_lists_every_command() {
         let text = general();
         for topic in Topic::ALL {
-            assert!(text.contains(&format!("\n    {} ", topic.page().synopsis)), "{}", topic.name());
+            assert!(
+                text.contains(&format!("\n    {} ", topic.page().synopsis)),
+                "{}",
+                topic.name()
+            );
         }
-        assert!(text.contains("    init [path]                 Create an environment in `path` [default: .]\n"), "{text}");
+        assert!(
+            text.contains(
+                "    init [path]                 Create an environment in `path` [default: .]\n"
+            ),
+            "{text}"
+        );
     }
 
     #[test]

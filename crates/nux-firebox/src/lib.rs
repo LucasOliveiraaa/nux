@@ -49,7 +49,9 @@ mod plan;
 mod sys;
 
 /// Directories replaced by empty ones inside the sandbox.
-pub const HIDDEN: &[&str] = &["/home", "/root", "/tmp", "/var/tmp", "/run", "/mnt", "/media", "/srv"];
+pub const HIDDEN: &[&str] = &[
+    "/home", "/root", "/tmp", "/var/tmp", "/run", "/mnt", "/media", "/srv",
+];
 
 /// Environment variables removed from sandboxed commands: they point at
 /// sockets and sessions the sandbox hides.
@@ -142,7 +144,9 @@ impl Sandbox {
     /// - when a directory has `rustup`, the toolchains in `$RUSTUP_HOME`
     ///   (`~/.rustup` by default).
     pub fn expose_programs(&mut self, path: &OsStr) -> &mut Self {
-        let hidden: Vec<PathBuf> = std::env::split_paths(path).filter(|d| d.is_absolute() && self.is_hidden(d)).collect();
+        let hidden: Vec<PathBuf> = std::env::split_paths(path)
+            .filter(|d| d.is_absolute() && self.is_hidden(d))
+            .collect();
         for dir in hidden {
             let parent = dir.parent().map(Path::to_path_buf);
             match (dir.file_name().and_then(OsStr::to_str), parent) {
@@ -159,7 +163,9 @@ impl Sandbox {
             if dir.join("rustup").is_file() {
                 let rustup = std::env::var_os("RUSTUP_HOME")
                     .map(PathBuf::from)
-                    .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".rustup")));
+                    .or_else(|| {
+                        std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".rustup"))
+                    });
                 if let Some(rustup) = rustup {
                     self.expose(rustup, Access::ReadOnly);
                 }
@@ -198,7 +204,11 @@ impl Sandbox {
         unsafe {
             command.pre_exec(move || sys::enter(&child_plan.ops, &mut slots, report));
         }
-        Ok(Session { plan, read, write: Some(write) })
+        Ok(Session {
+            plan,
+            read,
+            write: Some(write),
+        })
     }
 
     /// Checks once whether sandboxes can be created here, by running `true`
@@ -209,7 +219,9 @@ impl Sandbox {
             .get_or_init(|| {
                 let mut command = Command::new("/bin/sh");
                 command.args(["-c", "exit 0"]).current_dir("/");
-                let session = Sandbox::new().apply(&mut command).map_err(|e| e.to_string())?;
+                let session = Sandbox::new()
+                    .apply(&mut command)
+                    .map_err(|e| e.to_string())?;
                 let status = command.status().map_err(|e| e.to_string());
                 session.finish().map_err(|e| e.to_string())?;
                 match status? {
@@ -240,7 +252,11 @@ impl Session {
         };
         let index = u32::from_ne_bytes(message[..4].try_into().unwrap()) as usize;
         let errno = c_int::from_ne_bytes(message[4..].try_into().unwrap());
-        let step = self.plan.ops.get(index).map_or_else(|| "set it up".into(), sys::Op::describe);
+        let step = self
+            .plan
+            .ops
+            .get(index)
+            .map_or_else(|| "set it up".into(), sys::Op::describe);
         Err(io::Error::other(format!(
             "cannot create the sandbox: failed to {step}: {}",
             io::Error::from_raw_os_error(errno)

@@ -6,7 +6,7 @@ use regex_automata::{
 };
 use thiserror::Error;
 
-use crate::search::search::SearchEngine;
+use crate::search::engine::SearchEngine;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SearcherId(pub(crate) usize);
@@ -14,7 +14,7 @@ pub struct SearcherId(pub(crate) usize);
 #[derive(Debug, Error)]
 pub enum BuilderError {
     #[error("regex error: {0}")]
-    RegexError(#[from] BuildError),
+    RegexError(#[from] Box<BuildError>),
 
     #[error("missing SEARCH section in DSecFile")]
     MissingSearchSection,
@@ -37,6 +37,12 @@ pub struct EngineBuilder<K: Clone + PartialEq + From<String> + ToString> {
     llcomment_tk: Option<SearcherId>,
     lcomment_tk: Option<SearcherId>,
     rcomment_tk: Option<SearcherId>,
+}
+
+impl<K: Clone + PartialEq + From<String> + ToString> Default for EngineBuilder<K> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<K: Clone + PartialEq + From<String> + ToString> EngineBuilder<K> {
@@ -82,7 +88,8 @@ impl<K: Clone + PartialEq + From<String> + ToString> EngineBuilder<K> {
         let config = dense::Config::new().match_kind(MatchKind::All);
         let dfa = Builder::new()
             .configure(config)
-            .build_many(&self.patterns)?;
+            .build_many(&self.patterns)
+            .map_err(Box::new)?;
         Ok(SearchEngine {
             dfa,
             kinds: self.kinds,

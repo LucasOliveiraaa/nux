@@ -136,9 +136,16 @@ impl<K: Clone + PartialEq + From<String> + ToString> SearchEngine<K> {
     /// in this order: the stored kinds must be exactly these (compared with
     /// `to_string`). A stale or damaged file is then an error, instead of a
     /// panic in a `From<String>` that does not know the name.
-    pub fn from_dsf_with_kinds(dsf: &DSecFile, curr_version: u32, kinds: &[K]) -> Result<Self, BuilderError> {
+    pub fn from_dsf_with_kinds(
+        dsf: &DSecFile,
+        curr_version: u32,
+        kinds: &[K],
+    ) -> Result<Self, BuilderError> {
         Self::read_dsf(dsf, curr_version, |name, index| {
-            kinds.get(index).filter(|kind| kind.to_string() == name).cloned()
+            kinds
+                .get(index)
+                .filter(|kind| kind.to_string() == name)
+                .cloned()
         })
     }
 
@@ -171,7 +178,9 @@ impl<K: Clone + PartialEq + From<String> + ToString> SearchEngine<K> {
         // them into memory aligned for `u32`.
         let mut aligned = vec![0u32; dfa_data.len().div_ceil(4)];
         // SAFETY: the `u32`s are viewed as their bytes, which any value has.
-        let bytes = unsafe { std::slice::from_raw_parts_mut(aligned.as_mut_ptr().cast::<u8>(), aligned.len() * 4) };
+        let bytes = unsafe {
+            std::slice::from_raw_parts_mut(aligned.as_mut_ptr().cast::<u8>(), aligned.len() * 4)
+        };
         bytes[..dfa_data.len()].copy_from_slice(dfa_data);
         // Validates the whole DFA, so a damaged file cannot cause bad reads.
         let (dfa_ref, _) = DFA::from_bytes(&bytes[..dfa_data.len()])?;
@@ -254,7 +263,10 @@ mod tests {
     }
 
     fn kinds(tokens: &[Token<String>]) -> Vec<(&str, &str)> {
-        tokens.iter().map(|t| (t.kind.as_str(), t.content.as_str())).collect()
+        tokens
+            .iter()
+            .map(|t| (t.kind.as_str(), t.content.as_str()))
+            .collect()
     }
 
     /// Saves `engine` after another section and reads it back from disk.
@@ -276,8 +288,14 @@ mod tests {
         let expected = ["word".to_string(), "space".to_string()];
         let loaded = SearchEngine::from_dsf_with_kinds(&dsf, 7, &expected).unwrap();
         let text = "hello big world";
-        assert_eq!(kinds(&loaded.tokenize(text).unwrap()), kinds(&original.tokenize(text).unwrap()));
-        assert_eq!(kinds(&loaded.tokenize(text).unwrap()), [("word", "hello"), ("word", "big"), ("word", "world")]);
+        assert_eq!(
+            kinds(&loaded.tokenize(text).unwrap()),
+            kinds(&original.tokenize(text).unwrap())
+        );
+        assert_eq!(
+            kinds(&loaded.tokenize(text).unwrap()),
+            [("word", "hello"), ("word", "big"), ("word", "world")]
+        );
         assert!(SearchEngine::<String>::from_dsf(&dsf, 7).is_ok());
     }
 
@@ -288,9 +306,21 @@ mod tests {
             let kinds: Vec<String> = kinds.iter().map(|k| k.to_string()).collect();
             SearchEngine::from_dsf_with_kinds(dsf, 7, &kinds).err()
         };
-        assert!(matches!(SearchEngine::<String>::from_dsf(&dsf, 8), Err(BuilderError::VersionMismatch { expected: 8, found: 7 })));
-        assert!(matches!(check(&dsf, &["word", "blank"]), Some(BuilderError::InvalidDSecFileFormat)));
-        assert!(matches!(check(&dsf, &["word"]), Some(BuilderError::InvalidDSecFileFormat)));
+        assert!(matches!(
+            SearchEngine::<String>::from_dsf(&dsf, 8),
+            Err(BuilderError::VersionMismatch {
+                expected: 8,
+                found: 7
+            })
+        ));
+        assert!(matches!(
+            check(&dsf, &["word", "blank"]),
+            Some(BuilderError::InvalidDSecFileFormat)
+        ));
+        assert!(matches!(
+            check(&dsf, &["word"]),
+            Some(BuilderError::InvalidDSecFileFormat)
+        ));
 
         // Flipped bytes inside the DFA, and a truncated section.
         let mut search = dsf.get("SEARCH").unwrap().data.clone();

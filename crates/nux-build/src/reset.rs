@@ -27,15 +27,28 @@ impl Workspace {
         let links = self.nux_links();
         if !links.is_empty() {
             let bytes = links.iter().map(|l| size(l)).sum();
-            items.push(CleanItem { kind: CleanKind::Links, path: self.bin_dir(), package: None, bytes });
+            items.push(CleanItem {
+                kind: CleanKind::Links,
+                path: self.bin_dir(),
+                package: None,
+                bytes,
+            });
         }
-        let mut parts = vec![(CleanKind::Packages, self.packages_dir()), (CleanKind::Records, self.state_dir())];
+        let mut parts = vec![
+            (CleanKind::Packages, self.packages_dir()),
+            (CleanKind::Records, self.state_dir()),
+        ];
         if !options.keep_cache {
             parts.push((CleanKind::Cache, self.cache_dir()));
         }
         for (kind, path) in parts {
             if path.symlink_metadata().is_ok() {
-                items.push(CleanItem { kind, bytes: size(&path), path, package: None });
+                items.push(CleanItem {
+                    kind,
+                    bytes: size(&path),
+                    path,
+                    package: None,
+                });
             }
         }
         Ok(items)
@@ -50,7 +63,11 @@ impl Workspace {
             .filter(|p| !p.file_name().is_some_and(|n| known.iter().any(|k| n == *k)))
             .collect();
         let links = self.nux_links();
-        kept.extend(entries(&self.bin_dir()).into_iter().filter(|p| !links.contains(p)));
+        kept.extend(
+            entries(&self.bin_dir())
+                .into_iter()
+                .filter(|p| !links.contains(p)),
+        );
         kept.sort();
         kept
     }
@@ -69,12 +86,16 @@ impl Workspace {
             };
             if item.path != expected {
                 let reason = "it is not something `reset` removes".into();
-                return Err(BuildError::Clean { path: item.path.clone(), reason });
+                return Err(BuildError::Clean {
+                    path: item.path.clone(),
+                    reason,
+                });
             }
             if item.kind == CleanKind::Links {
                 for link in self.nux_links() {
-                    std::fs::remove_file(&link)
-                        .map_err(|e| BuildError::io(format!("cannot remove `{}`", link.display()), e))?;
+                    std::fs::remove_file(&link).map_err(|e| {
+                        BuildError::io(format!("cannot remove `{}`", link.display()), e)
+                    })?;
                 }
                 // Kept when something else is in it.
                 let _ = std::fs::remove_dir(&item.path);
@@ -94,9 +115,12 @@ impl Workspace {
         entries(&self.bin_dir())
             .into_iter()
             .filter(|path| {
-                let Ok(target) = std::fs::read_link(path) else { return false };
+                let Ok(target) = std::fs::read_link(path) else {
+                    return false;
+                };
                 let name = path.file_name().unwrap_or_default().to_string_lossy();
-                target.starts_with("../packages") || (name.starts_with('.') && name.ends_with(".tmp"))
+                target.starts_with("../packages")
+                    || (name.starts_with('.') && name.ends_with(".tmp"))
             })
             .collect()
     }

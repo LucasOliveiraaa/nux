@@ -16,11 +16,18 @@ pub mod sync;
 
 /// Takes the workspace lock for a command that changes the workspace.
 /// Errors are ready to print; a busy workspace suggests `--wait`.
-pub fn lock_workspace(workspace: &Workspace, wait: bool, out: &mut impl Write) -> Result<WorkspaceLock, String> {
+pub fn lock_workspace(
+    workspace: &Workspace,
+    wait: bool,
+    out: &mut impl Write,
+) -> Result<WorkspaceLock, String> {
     workspace
         .lock(wait, |pid| {
             let holder = pid.map_or(String::new(), |pid| format!(" (pid {pid})"));
-            let _ = writeln!(out, "Waiting for another nux process{holder} to finish with the workspace...");
+            let _ = writeln!(
+                out,
+                "Waiting for another nux process{holder} to finish with the workspace..."
+            );
             let _ = out.flush();
         })
         .map_err(|e| match e {

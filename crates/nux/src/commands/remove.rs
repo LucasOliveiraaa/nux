@@ -48,6 +48,13 @@ where
             .map_err(|e| format!("cannot edit environment `{}`: {e}", path.display()))?;
         let env = Environment::from_text(&text, &path, current.global, config)?;
         let message = format!("Removing from `{}`:\n{}", path.display(), lines.join("\n"));
-        Ok((env, Some(Edit { path, text: Some(text), message })))
+        Ok((
+            env,
+            Some(Edit {
+                path,
+                text: Some(text),
+                message,
+            }),
+        ))
     })
 }

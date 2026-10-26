@@ -144,7 +144,10 @@ type Result<T> = std::result::Result<T, EvalError>;
 
 /// Evaluates `program` against a host without executables, so the result
 /// only depends on the program; see [`eval_program_with_host`].
-pub fn eval_program(program: &ast::Program, executor: &mut Executor) -> std::result::Result<EvalResult, EvalError> {
+pub fn eval_program(
+    program: &ast::Program,
+    executor: &mut Executor,
+) -> std::result::Result<EvalResult, EvalError> {
     eval_program_with_host(program, executor, &Host::empty())
 }
 

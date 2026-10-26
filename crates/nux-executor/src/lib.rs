@@ -51,7 +51,9 @@ impl Executor {
         command: &mut std::process::Command,
         run: impl FnOnce(&mut std::process::Command) -> std::io::Result<T>,
     ) -> std::io::Result<T> {
-        let Some(sandbox) = &self.sandbox else { return run(command) };
+        let Some(sandbox) = &self.sandbox else {
+            return run(command);
+        };
         let session = sandbox.apply(command)?;
         let result = run(command);
         session.finish()?;
@@ -76,8 +78,12 @@ impl Executor {
 
     /// Runs `command` with both stdout and stderr appended to `log`.
     pub fn execute_logged(&self, command: &str, log: &std::fs::File) -> Result<(), String> {
-        let stdout = log.try_clone().map_err(|e| format!("Failed to open log: {}", e))?;
-        let stderr = log.try_clone().map_err(|e| format!("Failed to open log: {}", e))?;
+        let stdout = log
+            .try_clone()
+            .map_err(|e| format!("Failed to open log: {}", e))?;
+        let stderr = log
+            .try_clone()
+            .map_err(|e| format!("Failed to open log: {}", e))?;
         let mut process = std::process::Command::new("sh");
         process
             .arg("-c")
@@ -104,7 +110,12 @@ impl Executor {
     pub fn run(&self, program: &str, args: &[String]) -> std::io::Result<Output> {
         use std::os::unix::process::ExitStatusExt;
         let mut process = std::process::Command::new(program);
-        process.args(args).env_clear().envs(&self.env).current_dir(&self.cwd).stdin(std::process::Stdio::null());
+        process
+            .args(args)
+            .env_clear()
+            .envs(&self.env)
+            .current_dir(&self.cwd)
+            .stdin(std::process::Stdio::null());
         let output = self.sandboxed(&mut process, |p| p.output())?;
         let status = output
             .status
@@ -150,13 +161,20 @@ mod tests {
     #[test]
     fn runs_programs_without_a_shell() {
         let executor = Executor::new();
-        let output = executor.run("printf", &args(&["%s|", "a b", "$HOME", "*"])).unwrap();
+        let output = executor
+            .run("printf", &args(&["%s|", "a b", "$HOME", "*"]))
+            .unwrap();
         // No word splitting, expansion or globbing.
         assert_eq!(output.stdout, "a b|$HOME|*|");
         assert!(output.success());
 
-        let output = executor.run("sh", &args(&["-c", "echo oops >&2; exit 3"])).unwrap();
-        assert_eq!((output.stderr.as_str(), output.status, output.success()), ("oops\n", 3, false));
+        let output = executor
+            .run("sh", &args(&["-c", "echo oops >&2; exit 3"]))
+            .unwrap();
+        assert_eq!(
+            (output.stderr.as_str(), output.status, output.success()),
+            ("oops\n", 3, false)
+        );
 
         let output = executor.run("sh", &args(&["-c", "kill -TERM $$"])).unwrap();
         assert_eq!(output.status, 128 + 15);
@@ -167,7 +185,9 @@ mod tests {
         let mut executor = Executor::new();
         executor.set_env("NUX_TEST_VALUE", "42");
         executor.set_cwd("/");
-        let output = executor.run("sh", &args(&["-c", "echo $NUX_TEST_VALUE $(pwd)"])).unwrap();
+        let output = executor
+            .run("sh", &args(&["-c", "echo $NUX_TEST_VALUE $(pwd)"]))
+            .unwrap();
         assert_eq!(output.stdout, "42 /\n");
     }
 
@@ -184,9 +204,15 @@ mod tests {
         executor.set_cwd(&dir);
         executor.set_env("LC_ALL", "C");
         executor.set_sandbox(Some(sandbox));
-        let output = executor.run("sh", &args(&["-c", "echo ok > out; touch /usr/nux-test"])).unwrap();
+        let output = executor
+            .run("sh", &args(&["-c", "echo ok > out; touch /usr/nux-test"]))
+            .unwrap();
         assert_eq!(output.status, 1);
-        assert!(output.stderr.contains("Read-only file system"), "{}", output.stderr);
+        assert!(
+            output.stderr.contains("Read-only file system"),
+            "{}",
+            output.stderr
+        );
         assert_eq!(std::fs::read_to_string(dir.join("out")).unwrap(), "ok\n");
         assert_eq!(executor.execute("echo $$").unwrap(), "2\n");
         std::fs::remove_dir_all(dir).unwrap();
@@ -194,7 +220,9 @@ mod tests {
 
     #[test]
     fn failing_to_start_is_an_error() {
-        let err = Executor::new().run("definitely-not-a-program", &[]).unwrap_err();
+        let err = Executor::new()
+            .run("definitely-not-a-program", &[])
+            .unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
         let err = Executor::new().run("/", &[]).unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);

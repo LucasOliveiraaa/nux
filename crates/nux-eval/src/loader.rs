@@ -13,7 +13,10 @@ use crate::{EvalError, EvalResult, Host, eval_program_with_host};
 #[derive(Debug)]
 pub enum LoadError {
     /// The file could not be read (missing, unreadable or not UTF-8).
-    Io { path: PathBuf, error: std::io::Error },
+    Io {
+        path: PathBuf,
+        error: std::io::Error,
+    },
     /// The lexer itself could not be built.
     LexerInit(String),
     Lex(LexError),
