@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
+env:
+  BIN_NAME: nux
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+jobs:
+  # Fail fast: tag must match the version of the crate that builds `nux`,
+  # and tests must pass, before building the release binaries.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Tag matches the nux crate version
+        run: |
+          # Workspace-safe: find the package that has a binary target named "nux".
+          crate_version="$(cargo metadata --no-deps --format-version 1 \
+            | jq -r --arg bin "$BIN_NAME" \
+              '[.packages[] | select(any(.targets[]; .name == $bin and (.kind | index("bin")))) | .version] | first // empty')"
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ -z "$crate_version" ]; then
+            echo "::error::No package with a '${BIN_NAME}' binary target found"
+            exit 1
+          fi
+          if [ "$crate_version" != "$tag_version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match crate version ${crate_version}"
+            exit 1
+          fi
+
+      - name: Test
+        run: cargo test --locked --workspace
+
+  build:
+    needs: verify
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        # Nux targets Linux only; cover both CPU architectures and both libcs.
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            musl: true
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+            musl: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install musl tools
+        if: matrix.musl
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build
+        run: cargo build --release --locked --bin "$BIN_NAME" --target ${{ matrix.target }}
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          asset="${BIN_NAME}-${{ matrix.target }}.tar.gz"
+          rm -rf stage dist
+          mkdir -p stage dist
+          cp "target/${{ matrix.target }}/release/${BIN_NAME}" stage/
+          cp LICENSE README.md stage/
+          tar -czf "dist/${asset}" -C stage .
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+
+      - name: Checksums and installer
+        run: |
+          set -euo pipefail
+          cp install.sh dist/install.sh
+          cd dist
+          sha256sum -- *.tar.gz > ../SHA256SUMS
+          mv ../SHA256SUMS SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

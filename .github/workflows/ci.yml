@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"   # weekly: catches new advisories / toolchain breakage
+  workflow_dispatch:
+
+# Cancel superseded runs on the same branch/PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+  MSRV: "1.85"   # keep in sync with rust-version
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Unit and integration tests
+        run: cargo test --workspace --all-targets --all-features --locked
+      # --all-targets does not run doctests.
+      - name: Doctests
+        run: cargo test --workspace --doc --all-features --locked
+
+  msrv:
+    name: MSRV
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust ${{ env.MSRV }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.MSRV }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --workspace --all-targets --locked
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo doc --workspace --no-deps --all-features --locked
+
+  lockfile:
+    name: Cargo.lock up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo metadata --locked --format-version 1 >/dev/null
+
+  audit:
+    name: Security audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@cargo-audit
+      - run: cargo audit
+
+  shellcheck:
+    name: ShellCheck (install.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck install.sh
+
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [fmt, clippy, test, msrv, docs, lockfile, audit, shellcheck]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed or was cancelled
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            exit 1
+          fi
