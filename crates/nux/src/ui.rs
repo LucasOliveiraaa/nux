@@ -23,7 +23,7 @@ impl Write for Stdout {
     }
 }
 
-/// The `Nux v0.1.0` banner every command starts with.
+/// The `Nux v0.2.0` banner every command starts with.
 pub fn write_header(out: &mut impl Write, term: Term) -> std::io::Result<()> {
     writeln!(
         out,
