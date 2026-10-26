@@ -2,7 +2,7 @@
 #
 # nux installer
 #
-#   curl -fsSL https://github.com/LucasOliveiraaa/nux/releases/latest/download/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/LucasOliveiraaa/nux/refs/heads/main/scripts/install.sh | bash
 #   curl -fsSL .../install.sh | bash -s -- --global --yes
 #
 # Run with --help for all options.
