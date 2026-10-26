@@ -41,6 +41,11 @@ jobs:
             exit 1
           fi
 
+      # Ubuntu 24.04 runners block unprivileged user namespaces via AppArmor,
+      # which Nux's build sandbox needs.
+      - name: Allow unprivileged user namespaces (for the Nux sandbox)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Test
         run: cargo test --locked --workspace
 
