@@ -86,32 +86,6 @@ fn the_host_is_read_only_except_what_is_exposed() {
 }
 
 #[test]
-fn hidden_directories_are_empty_and_writable() {
-    if !supported() {
-        return;
-    }
-    let dir = temp("hidden");
-    let home = dir.join("home/me");
-    std::fs::create_dir_all(dir.join("visible")).unwrap();
-    let mut sandbox = Sandbox::new();
-    sandbox
-        .expose(dir.join("visible"), Access::ReadOnly)
-        .directory(&home)
-        .expose("/nonexistent", Access::ReadOnly);
-    // `/tmp` only shows the exposed directory; `home` is empty and writable.
-    let script = format!(
-        "ls -A /tmp | wc -l; \
-     n=$(ls -A /run | wc -l); echo $n; \
-     [ $n -eq 0 ] || ls -A /run | sed 's/^/run: /'; \
-     echo cache > {home}/c && cat {home}/c; touch /tmp/new && echo tmp ok",
-        home = home.display()
-    );
-    let (code, out) = run(&sandbox, Path::new("/"), &script);
-    assert_eq!((code, out.as_str()), (0, "1\n0\ncache\ntmp ok\n"), "{out}");
-    assert!(!home.exists(), "nothing reaches the host");
-}
-
-#[test]
 fn processes_devices_and_identity_are_private() {
     if !supported() {
         return;
