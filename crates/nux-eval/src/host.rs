@@ -105,7 +105,7 @@ mod tests {
         let path = dir.join(name);
         std::fs::write(&path, format!("#!/bin/sh\necho '{version_output}'\n")).unwrap();
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        
+
         // Another test thread may have forked while we held the file open for
         // writing; wait until the kernel stops reporting ETXTBSY (Text file busy).
         for _ in 0..100 {
