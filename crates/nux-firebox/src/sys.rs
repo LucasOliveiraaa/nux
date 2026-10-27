@@ -284,7 +284,7 @@ unsafe fn run(op: &Op, slots: &mut [c_int], report: c_int) -> Result<(), c_int> 
                     *to = *from as libc::c_char;
                 }
                 request.ifr_ifru.ifru_flags = (libc::IFF_UP | libc::IFF_RUNNING) as libc::c_short;
-                let result = libc::ioctl(socket, libc::SIOCSIFFLAGS, &request);
+                let result = libc::ioctl(socket, libc::SIOCSIFFLAGS as _, &request);
                 let error = errno();
                 libc::close(socket);
                 if result != 0 {
