@@ -20,7 +20,7 @@ list the programs you want in an environment (`Nux.toml`), and run
 You can install Nux with this installation script:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/LucasOliveiraaa/nux/refs/heads/main/scripts/install.sh | bash
+curl -fsSL https://github.com/LucasOliveiraaa/nux/releases/download/v0.2.1/install.sh | bash
 ```
 
 If you prefer to build from source, you need Linux, Rust 1.85 or later, `git`, `curl` and a C compiler.
