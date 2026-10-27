@@ -130,7 +130,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "nux"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "nux-build",
  "nux-eval",
@@ -144,7 +144,7 @@ dependencies = [
 
 [[package]]
 name = "nux-build"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "nux-eval",
  "nux-executor",
@@ -156,7 +156,7 @@ dependencies = [
 
 [[package]]
 name = "nux-eval"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "nux-executor",
  "nux-lexer",
@@ -166,21 +166,21 @@ dependencies = [
 
 [[package]]
 name = "nux-executor"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "nux-firebox",
 ]
 
 [[package]]
 name = "nux-firebox"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "libc",
 ]
 
 [[package]]
 name = "nux-lexer"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "tfla",
@@ -188,18 +188,18 @@ dependencies = [
 
 [[package]]
 name = "nux-log"
-version = "0.2.0"
+version = "0.2.1"
 
 [[package]]
 name = "nux-parser"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "nux-lexer",
 ]
 
 [[package]]
 name = "nux-resolver"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "nux-eval",
  "nux-executor",
@@ -329,7 +329,7 @@ dependencies = [
 
 [[package]]
 name = "tfla"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "hashbrown",
  "regex-automata",

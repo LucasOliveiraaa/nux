@@ -140,7 +140,7 @@ mod tests {
         assert_eq!(
             String::from_utf8(out).unwrap(),
             format!(
-                "Nux v0.2.0\n\nCreated environment my env in `{0}`:\n  Nux.toml\n  repository/hello.nux\n\nTo build it, run:\n\n  nux sync -e {0}\n",
+                "Nux v0.2.1\n\nCreated environment my env in `{0}`:\n  Nux.toml\n  repository/hello.nux\n\nTo build it, run:\n\n  nux sync -e {0}\n",
                 dir.display()
             )
         );

@@ -141,7 +141,7 @@ fn tool(name: &str, version: &str, extra: &str) -> String {
     )
 }
 
-const UP_TO_DATE: &str = "Nux v0.2.0
+const UP_TO_DATE: &str = "Nux v0.2.1
 
 Environment: test
 
@@ -192,7 +192,7 @@ fn sync_builds_then_reports_up_to_date() {
     assert_eq!(
         output.join("\n") + "\n",
         format!(
-            "Nux v0.2.0
+            "Nux v0.2.1
 
 Environment: test
 
@@ -483,7 +483,7 @@ fn status_reports_requests_installs_and_pending_work() {
     assert_eq!(
         output,
         format!(
-            "Nux v0.2.0
+            "Nux v0.2.1
 
 Environment: test ({env})
 Workspace:   {home} (not created yet)
@@ -1263,7 +1263,7 @@ fn install_requests_packages_and_syncs() {
     assert_eq!(result, Ok(Outcome::Synced), "{output}");
     assert!(
         output.starts_with(&format!(
-            "Nux v0.2.0\n\nEnvironment: test\n\nRequesting in `{}`:\n  b latest\n\nResolving dependencies...\n",
+            "Nux v0.2.1\n\nEnvironment: test\n\nRequesting in `{}`:\n  b latest\n\nResolving dependencies...\n",
             project.dir.join("Nux.toml").display()
         )),
         "{output}"
